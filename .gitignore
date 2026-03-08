@@ -1,0 +1,31 @@
+# Зависимости
+node_modules/
+
+# Сборка
+client/dist/
+server/dist/
+
+# Переменные окружения (секреты)
+.env
+.env.local
+.env.*.local
+server/.env
+
+# Загруженные файлы
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Логи и кэш
+*.log
+.npm
+.cache
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-primary text-content-primary antialiased dark:bg-primary-dark dark:text-slate-100;
+    @apply transition-colors duration-150;
+  }
+  /* Плавный скролл и выделение */
+  html {
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    @apply bg-accent/30 dark:bg-accent-light/40;
+  }
+  /* Фокус-кольцо для доступности */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-primary dark:ring-offset-primary-dark;
+  }
+}
