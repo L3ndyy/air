@@ -85,7 +85,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!showNewGroup) return;
     (async () => {
-      const { data } = await supabase.from("profiles").select("id, username, full_name").order("username");
+      const { data } = await supabase.from("profiles").select("*").order("username");
       setAllProfiles((data ?? []).filter((p) => p.id !== currentUser?.id));
     })();
   }, [showNewGroup, currentUser?.id, supabase]);
