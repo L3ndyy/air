@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail, setMaintenance } from "@/lib/admin";
+import { getMaintenance, isAdminEmail, setMaintenance } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
+
+export async function GET() {
+  try {
+    const maintenance = await getMaintenance();
+    return NextResponse.json({ maintenance });
+  } catch {
+    return NextResponse.json({ maintenance: false }, { status: 200 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
