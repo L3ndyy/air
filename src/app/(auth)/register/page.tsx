@@ -1,0 +1,162 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button, Input, Card, CardHeader, CardTitle, CardContent } from "@/components/ui";
+import { createClient } from "@/lib/supabase/client";
+import { MessageCircle } from "lucide-react";
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (!username || username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    const valid = /^[a-zA-Z0-9_]+$/.test(username);
+    if (!valid) {
+      setUsernameAvailable(false);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", username.toLowerCase())
+        .maybeSingle();
+      setUsernameAvailable(!data);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [username, supabase]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirmPassword) {
+      setError("Пароли не совпадают");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Пароль не менее 6 символов");
+      return;
+    }
+    if (!username || username.length < 3) {
+      setError("Username от 3 символов");
+      return;
+    }
+    if (usernameAvailable === false) {
+      setError("Этот username уже занят");
+      return;
+    }
+    setLoading(true);
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName || undefined } },
+    });
+    if (signUpError) {
+      setLoading(false);
+      setError(signUpError.message);
+      return;
+    }
+    if (!authData.user) {
+      setLoading(false);
+      setError("Ошибка регистрации");
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ username: username.toLowerCase().trim(), full_name: fullName || "" })
+      .eq("id", authData.user.id);
+    if (updateError) {
+      setError("Аккаунт создан, но не удалось сохранить username. Измените в профиле.");
+    }
+    setLoading(false);
+    router.push("/chat");
+    router.refresh();
+  }
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white">
+          <MessageCircle className="h-6 w-6" />
+        </div>
+        <CardTitle className="text-2xl">Air</CardTitle>
+        <p className="text-sm text-gray-500">Создайте аккаунт</p>
+      </CardHeader>
+      <CardContent className="pt-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+          <Input
+            type="text"
+            placeholder="Username (как в Telegram)"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            minLength={3}
+            autoComplete="username"
+            error={
+              usernameAvailable === false
+                ? "Username занят"
+                : undefined
+            }
+          />
+          <Input
+            type="text"
+            placeholder="Имя (необязательно)"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            autoComplete="name"
+          />
+          <Input
+            type="password"
+            placeholder="Пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            autoComplete="new-password"
+          />
+          <Input
+            type="password"
+            placeholder="Повторите пароль"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <Button type="submit" className="w-full" isLoading={loading}>
+            Зарегистрироваться
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-500">
+          Уже есть аккаунт?{" "}
+          <Link href="/login" className="font-medium text-blue-500 hover:text-blue-600">
+            Войти
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}

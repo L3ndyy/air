@@ -1,31 +1,35 @@
-# Зависимости
-node_modules/
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# Сборка
-client/dist/
-server/dist/
+# testing
+/coverage
 
-# Переменные окружения (секреты)
-.env
-.env.local
-.env.*.local
-server/.env
+# next.js
+/.next/
+/out/
 
-# Загруженные файлы
-server/uploads/*
-!server/uploads/.gitkeep
+# production
+/build
 
-# Логи и кэш
-*.log
-.npm
-.cache
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
+# misc
 .DS_Store
-Thumbs.db
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

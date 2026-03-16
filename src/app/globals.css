@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Air palette: light, minimal */
+  --air-bg: #fafafa;
+  --air-surface: rgba(255, 255, 255, 0.85);
+  --air-border: rgba(0, 0, 0, 0.06);
+  --air-accent: #3b82f6;
+  --air-accent-end: #8b5cf6;
+  --air-muted: #6b7280;
+}
+
+body {
+  @apply bg-[var(--air-bg)] text-gray-800 antialiased;
+}
+
+/* Focus ring in accent color */
+input:focus-visible,
+button:focus-visible,
+textarea:focus-visible {
+  @apply outline-none ring-2 ring-blue-400/50 ring-offset-2 ring-offset-white;
+}
