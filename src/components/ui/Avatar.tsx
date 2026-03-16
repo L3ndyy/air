@@ -7,7 +7,7 @@ interface AvatarProps {
   src?: string | null;
   alt?: string;
   fallback?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -15,6 +15,7 @@ const sizes = {
   sm: "h-8 w-8 text-xs",
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base",
+  xl: "h-24 w-24 text-2xl",
 };
 
 function getInitials(name: string): string {
@@ -49,15 +50,21 @@ export function Avatar({
       )}
     >
       {emojiChar ? (
-        <span className="leading-none" style={{ fontSize: size === "sm" ? "1rem" : size === "lg" ? "1.75rem" : "1.25rem" }}>
+        <span
+          className="leading-none"
+          style={{
+            fontSize:
+              size === "sm" ? "1rem" : size === "lg" ? "1.75rem" : size === "xl" ? "3rem" : "1.25rem",
+          }}
+        >
           {emojiChar}
         </span>
       ) : src && !isEmoji ? (
         <Image
           src={src}
           alt={alt || fallback}
-          width={size === "sm" ? 32 : size === "lg" ? 48 : 40}
-          height={size === "sm" ? 32 : size === "lg" ? 48 : 40}
+          width={size === "xl" ? 96 : size === "sm" ? 32 : size === "lg" ? 48 : 40}
+          height={size === "xl" ? 96 : size === "sm" ? 32 : size === "lg" ? 48 : 40}
           className="h-full w-full object-cover"
           unoptimized={src.startsWith("blob:") || src.includes("supabase")}
         />

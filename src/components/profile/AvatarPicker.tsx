@@ -45,18 +45,18 @@ export function AvatarPicker({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-5">
       <div className="relative">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={disabled}
-          className="rounded-full ring-4 ring-white shadow-air-md focus:outline-none focus:ring-2 focus:ring-blue-400/50 disabled:opacity-50"
+          className="rounded-full ring-4 ring-white shadow-xl shadow-gray-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400/50 disabled:opacity-50"
         >
-          <Avatar src={currentUrl} fallback={fallback} size="lg" />
+          <Avatar src={currentUrl} fallback={fallback} size="xl" />
         </button>
-        <span className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-gray-800 text-white shadow-md">
-          <Camera className="h-4 w-4" />
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg">
+          <Camera className="h-5 w-5" />
         </span>
         <input
           ref={inputRef}
@@ -72,7 +72,7 @@ export function AvatarPicker({
           <button
             type="button"
             onClick={() => setMode("emoji")}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200/80 bg-white/80 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200/80 bg-white py-2.5 text-sm text-gray-600 transition hover:border-blue-200 hover:bg-blue-50/50"
           >
             <Smile className="h-4 w-4" />
             Выбрать эмодзи

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import type { Profile } from "@/types/database";
@@ -101,22 +101,29 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-1 justify-center overflow-y-auto p-6">
-      <Card className="w-full max-w-md border-gray-200/60 shadow-air-md">
-        <CardHeader className="space-y-1 pb-4 pt-6 text-center">
-          <AvatarPicker
-            currentUrl={profile.avatar_url}
-            fallback={profile.full_name || profile.username}
-            onUpload={handleAvatarUpload}
-            onEmojiSelect={handleEmojiSelect}
-          />
-          <CardTitle className="pt-2 text-xl">Профиль</CardTitle>
-          <p className="text-sm text-gray-500">@{profile.username}</p>
-        </CardHeader>
-        <CardContent className="border-t border-gray-100 pb-8 pt-6">
-          <ProfileForm profile={profile} />
-        </CardContent>
-      </Card>
+    <div className="flex flex-1 justify-center overflow-y-auto bg-gradient-to-b from-gray-50/80 to-white p-6">
+      <div className="w-full max-w-md">
+        <div className="rounded-3xl border border-gray-200/60 bg-white/95 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-sm">
+          <div className="flex flex-col items-center text-center">
+            <AvatarPicker
+              currentUrl={profile.avatar_url}
+              fallback={profile.full_name || profile.username}
+              onUpload={handleAvatarUpload}
+              onEmojiSelect={handleEmojiSelect}
+            />
+            <h1 className="mt-4 text-2xl font-semibold text-gray-800">Профиль</h1>
+            <p className="mt-1 text-sm text-gray-500">Настройте имя, ник и статус</p>
+          </div>
+          <div className="mt-8 border-t border-gray-100 pt-8">
+            <ProfileForm
+              profile={profile}
+              onSaved={(updated) => {
+                if (updated) setProfile((prev) => (prev ? { ...prev, ...updated } : null));
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
