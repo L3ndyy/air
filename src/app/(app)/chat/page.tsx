@@ -207,11 +207,11 @@ export default function ChatPage() {
     : null;
   const title = selected
     ? selected.type === "group"
-      ? selected.name ?? "Группа"
-      : selected.otherParticipant?.full_name || selected.otherParticipant?.username ?? "Чат"
+      ? (selected.name ?? "Группа")
+      : ((selected.otherParticipant?.full_name || selected.otherParticipant?.username) ?? "Чат")
     : "";
   const avatarUrl = selected?.type === "group" ? selected.avatar_url : selected?.otherParticipant?.avatar_url;
-  const fallback = selected?.type === "group" ? (selected.name ?? "Г") : (selected?.otherParticipant?.full_name || selected?.otherParticipant?.username ?? "?");
+  const fallback = selected?.type === "group" ? (selected.name ?? "Г") : ((selected?.otherParticipant?.full_name || selected?.otherParticipant?.username) ?? "?");
 
   return (
     <div className="flex h-full">
@@ -292,8 +292,8 @@ export default function ChatPage() {
           {conversations.map((c) => {
             const label =
               c.type === "group"
-                ? c.name ?? "Группа"
-                : c.otherParticipant?.full_name || c.otherParticipant?.username ?? "Чат";
+                ? (c.name ?? "Группа")
+                : ((c.otherParticipant?.full_name || c.otherParticipant?.username) ?? "Чат");
             const isSelected = c.id === selectedId;
             return (
               <li key={c.id}>
@@ -305,7 +305,7 @@ export default function ChatPage() {
                   }`}
                 >
                   <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center text-gray-700 font-medium">
-                    {c.type === "group" ? (c.name?.[0] ?? "Г") : (c.otherParticipant?.full_name?.[0] || c.otherParticipant?.username?.[0] ?? "?")}
+                    {c.type === "group" ? (c.name?.[0] ?? "Г") : ((c.otherParticipant?.full_name?.[0] || c.otherParticipant?.username?.[0]) ?? "?")}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-gray-800">{label}</p>
