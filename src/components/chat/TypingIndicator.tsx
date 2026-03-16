@@ -19,7 +19,8 @@ export function TypingIndicator({ conversationId, currentUserId }: TypingIndicat
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         const ids = new Set<string>();
-        Object.values(state).flat().forEach((p: { user_id?: string; typing?: boolean }) => {
+        const presences = Object.values(state).flat() as Array<{ user_id?: string; typing?: boolean }>;
+        presences.forEach((p) => {
           if (p?.user_id && p?.typing && p.user_id !== currentUserId) ids.add(p.user_id);
         });
         setTypingUserIds(ids);
