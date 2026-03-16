@@ -38,7 +38,7 @@ export function Avatar({
 }: AvatarProps) {
   const initials = getInitials(fallback || "?");
   const isEmoji = src?.startsWith(EMOJI_PREFIX);
-  const emojiChar = isEmoji ? src.slice(EMOJI_PREFIX.length) : null;
+  const emojiChar = isEmoji && src ? src.slice(EMOJI_PREFIX.length) : null;
 
   return (
     <span
