@@ -126,76 +126,27 @@ export default function ChatPage() {
     if (!username || !currentUser) return;
     setCreating(true);
     setNewChatError(null);
-    let other: { id: string } | null = null;
     try {
-      const res = await fetch(
-        `/api/users/find?username=${encodeURIComponent(username)}`,
-        { credentials: "include" }
-      );
-      if (res.ok) {
-        other = await res.json();
-      } else if (res.status === 404) {
-        const data = await res.json().catch(() => ({}));
-        setNewChatError((data.error as string) || "Пользователь не найден");
-      } else {
-        setNewChatError("Пользователь не найден");
-      }
-    } catch {
-      setNewChatError("Ошибка поиска");
-    }
-    if (!other) {
-      setCreating(false);
-      return;
-    }
-    if (other.id === currentUser.id) {
-      setNewChatError("Нельзя начать чат с собой");
-      setCreating(false);
-      return;
-    }
-    const { data: existing } = await supabase
-      .from("participants")
-      .select("conversation_id")
-      .eq("user_id", currentUser.id);
-    const myConvIds = (existing ?? []).map((p) => p.conversation_id);
-    if (myConvIds.length > 0) {
-      const { data: direct } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("type", "direct")
-        .in("id", myConvIds);
-      const convIds = direct?.map((c) => c.id) ?? [];
-      const { data: otherParts } = await supabase
-        .from("participants")
-        .select("conversation_id")
-        .eq("user_id", other.id)
-        .in("conversation_id", convIds);
-      const existingWithOther = otherParts?.find((p) => convIds.includes(p.conversation_id));
-      if (existingWithOther) {
-        setSelectedId(existingWithOther.conversation_id);
-        setShowNewChatModal(false);
-        setNewChatUsername("");
+      const res = await fetch("/api/conversations/direct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNewChatError((data.error as string) || "Не удалось создать чат");
         setCreating(false);
         return;
       }
-    }
-    const { data: newConv, error: createErr } = await supabase
-      .from("conversations")
-      .insert({ type: "direct" })
-      .select("id")
-      .single();
-    if (createErr || !newConv) {
+      const convId = data.id as string;
+      await refreshConversations();
+      setSelectedId(convId);
+      setShowNewChatModal(false);
+      setNewChatUsername("");
+    } catch {
       setNewChatError("Ошибка создания чата");
-      setCreating(false);
-      return;
     }
-    await supabase.from("participants").insert([
-      { conversation_id: newConv.id, user_id: currentUser.id },
-      { conversation_id: newConv.id, user_id: other.id },
-    ]);
-    await refreshConversations();
-    setSelectedId(newConv.id);
-    setShowNewChatModal(false);
-    setNewChatUsername("");
     setCreating(false);
   }
 
