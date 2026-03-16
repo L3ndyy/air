@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ChatPlaceholder } from "@/components/layout/ChatPlaceholder";
 import { ChatHeader } from "@/components/layout/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { ProfilePanel } from "@/components/profile/ProfilePanel";
 import { Button, Input } from "@/components/ui";
 import type { Conversation, Profile } from "@/types/database";
 
@@ -64,6 +65,7 @@ async function loadConversations(
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
@@ -212,9 +214,14 @@ export default function ChatPage() {
     : "";
   const avatarUrl = selected?.type === "group" ? selected.avatar_url : selected?.otherParticipant?.avatar_url;
   const fallback = selected?.type === "group" ? (selected.name ?? "Г") : ((selected?.otherParticipant?.full_name || selected?.otherParticipant?.username) ?? "?");
+  const showProfilePanel = searchParams.get("panel") === "profile";
+
+  function closeProfilePanel() {
+    router.replace("/chat");
+  }
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div className="flex w-80 shrink-0 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-xl">
         <div className="flex items-center justify-between border-b border-gray-200/60 px-3 py-2">
           <h2 className="text-sm font-medium text-gray-500">Чаты</h2>
@@ -337,6 +344,9 @@ export default function ChatPage() {
           <ChatPlaceholder />
         )}
       </div>
+      {showProfilePanel && (
+        <ProfilePanel onClose={closeProfilePanel} />
+      )}
     </div>
   );
 }

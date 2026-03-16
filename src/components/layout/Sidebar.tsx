@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { MessageCircle, User, Plus } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +10,9 @@ import type { Profile } from "@/types/database";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const isProfileOpen = pathname === "/chat" && searchParams.get("panel") === "profile";
   const supabase = createClient();
 
   useEffect(() => {
@@ -45,11 +47,9 @@ export function Sidebar() {
       </div>
       <div className="border-t border-gray-200/60 p-3">
         <Link
-          href="/profile"
+          href="/chat?panel=profile"
           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-            pathname === "/profile"
-              ? "bg-blue-50/80 text-gray-800"
-              : "text-gray-600 hover:bg-gray-100/80"
+            isProfileOpen ? "bg-blue-50/80 text-gray-800" : "text-gray-600 hover:bg-gray-100/80"
           }`}
         >
           <Avatar

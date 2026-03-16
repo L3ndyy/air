@@ -105,9 +105,9 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-gray-600">Статус</label>
+        <label className="mb-1.5 block text-sm font-medium text-gray-600">Описание</label>
         <Input
-          placeholder="Например: в сети"
+          placeholder="Расскажите о себе"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         />
