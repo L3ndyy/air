@@ -18,6 +18,7 @@
    - `supabase/migrations/20240316000002_storage_avatars.sql`
    - Если страница профиля возвращает ошибку 500 — выполните также `supabase/migrations/20240316000003_profiles_rls_fix.sql`.
    - Если при сохранении профиля появляется «infinite recursion» для participants — выполните `supabase/migrations/20240316000004_participants_rls_no_recursion.sql`.
+   - Чтобы при регистрации сразу сохранялся выбранный username и работал поиск по username — выполните `supabase/migrations/20240316000005_register_username_from_metadata.sql`.
 3. В **Database → Replication** включите Realtime для таблицы `messages`.
 4. В **Authentication → URL Configuration** добавьте в **Redirect URLs** ваш production URL (например `https://your-app.onreza.ru`).
 

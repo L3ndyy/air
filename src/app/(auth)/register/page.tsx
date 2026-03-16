@@ -31,16 +31,19 @@ export default function RegisterPage() {
       setUsernameAvailable(false);
       return;
     }
+    let cancelled = false;
     const t = setTimeout(async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", username.toLowerCase())
-        .maybeSingle();
-      setUsernameAvailable(!data);
+      const res = await fetch(
+        `/api/users/check?username=${encodeURIComponent(username.trim().toLowerCase())}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!cancelled) setUsernameAvailable(Boolean(data.available));
     }, 300);
-    return () => clearTimeout(t);
-  }, [username, supabase]);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [username]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +68,12 @@ export default function RegisterPage() {
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName || undefined } },
+      options: {
+        data: {
+          username: username.trim().toLowerCase(),
+          full_name: fullName?.trim() || "",
+        },
+      },
     });
     if (signUpError) {
       setLoading(false);
@@ -76,13 +84,6 @@ export default function RegisterPage() {
       setLoading(false);
       setError("Ошибка регистрации");
       return;
-    }
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ username: username.toLowerCase().trim(), full_name: fullName || "" })
-      .eq("id", authData.user.id);
-    if (updateError) {
-      setError("Аккаунт создан, но не удалось сохранить username. Измените в профиле.");
     }
     setLoading(false);
     const needsConfirmation = !authData.session;

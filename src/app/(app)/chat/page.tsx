@@ -126,13 +126,24 @@ export default function ChatPage() {
     if (!username || !currentUser) return;
     setCreating(true);
     setNewChatError(null);
-    const { data: other } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
+    let other: { id: string } | null = null;
+    try {
+      const res = await fetch(
+        `/api/users/find?username=${encodeURIComponent(username)}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        other = await res.json();
+      } else if (res.status === 404) {
+        const data = await res.json().catch(() => ({}));
+        setNewChatError((data.error as string) || "Пользователь не найден");
+      } else {
+        setNewChatError("Пользователь не найден");
+      }
+    } catch {
+      setNewChatError("Ошибка поиска");
+    }
     if (!other) {
-      setNewChatError("Пользователь не найден");
       setCreating(false);
       return;
     }
