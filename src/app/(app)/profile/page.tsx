@@ -19,43 +19,24 @@ export default function ProfilePage() {
     setLoading(true);
     setError(null);
     setIs500(false);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    const { data, error: fetchError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (fetchError) {
+    try {
+      const res = await fetch("/api/profile", { credentials: "include" });
+      if (res.status === 401) {
+        setLoading(false);
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.error || "Не удалось загрузить профиль");
+        setIs500(res.status === 500);
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setProfile(data);
+    } catch {
       setError("Не удалось загрузить профиль");
       setIs500(true);
-      setLoading(false);
-      return;
-    }
-    if (data) {
-      setProfile(data);
-    } else {
-      const { data: upserted } = await supabase
-        .from("profiles")
-        .upsert(
-          {
-            id: user.id,
-            username: "user_" + user.id.slice(0, 8),
-            full_name: (user.user_metadata?.full_name as string) || "",
-          },
-          { onConflict: "id" }
-        )
-        .select("*")
-        .single();
-      if (upserted) setProfile(upserted);
-      else {
-        const { data: retry } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-        setProfile(retry ?? null);
-        if (!retry) setError("Ошибка создания профиля");
-      }
     }
     setLoading(false);
   }
@@ -103,8 +84,8 @@ export default function ProfilePage() {
         <p className="text-gray-600">{error || "Профиль не найден"}</p>
         {is500 && (
           <p className="max-w-sm text-sm text-gray-500">
-            Если после «Повторить» не помогло: откройте в Supabase раздел SQL Editor и выполните содержимое файла{" "}
-            <code className="rounded bg-gray-100 px-1">supabase/migrations/20240316000003_profiles_rls_fix.sql</code>.
+            Добавьте в переменные окружения (ONREZA и локально) ключ{" "}
+            <code className="rounded bg-gray-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code> из Supabase → Settings → API.
           </p>
         )}
         <div className="flex flex-wrap justify-center gap-2">

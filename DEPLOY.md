@@ -8,6 +8,7 @@
 
 - `NEXT_PUBLIC_SUPABASE_URL` — URL проекта Supabase (Settings → API).
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — публичный anon key (Settings → API).
+- `SUPABASE_SERVICE_ROLE_KEY` — секретный service_role key (Settings → API). Нужен для страницы профиля (API загружает профиль в обход RLS). Не показывать в клиенте.
 
 ## Supabase
 
@@ -34,15 +35,10 @@
    | **Выходная директория** | Оставьте **`.next`**. |
    | **Команда установки** | Оставьте **`npm install`**. |
 
-4. **Переменные окружения** — обязательно добавьте две переменные:
-   - Нажмите **«+ Добавить ещё»**.
-   - **Ключ:** `NEXT_PUBLIC_SUPABASE_URL`  
-     **Значение:** URL вашего проекта из Supabase (Settings → API), например `https://xxxxx.supabase.co`.
-   - Снова **«+ Добавить ещё»**.
-   - **Ключ:** `NEXT_PUBLIC_SUPABASE_ANON_KEY`  
-     **Значение:** публичный anon key из Supabase (Settings → API).
-
-   Либо нажмите **«↑ Импорт .env»** и загрузите файл `.env.local` (без секретов, только эти два ключа).
+4. **Переменные окружения** — добавьте три переменные:
+   - **Ключ:** `NEXT_PUBLIC_SUPABASE_URL` → **Значение:** URL проекта (Supabase → Settings → API).
+   - **Ключ:** `NEXT_PUBLIC_SUPABASE_ANON_KEY` → **Значение:** anon key (там же).
+   - **Ключ:** `SUPABASE_SERVICE_ROLE_KEY` → **Значение:** service_role key (там же, секретный). Нужен для загрузки профиля.
 
 5. Нажмите **«Задеплоить»**. После сборки получите домен вида `*.onreza.ru` или подключите свой.
 
