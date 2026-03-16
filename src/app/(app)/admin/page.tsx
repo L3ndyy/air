@@ -31,7 +31,7 @@ export default function AdminPage() {
       }
       const [statsRes, maintRes] = await Promise.all([
         fetch("/api/admin/stats", { credentials: "include" }),
-        fetch("/api/settings/maintenance", { credentials: "include" }),
+        fetch("/api/admin/maintenance", { credentials: "include" }),
       ]);
       if (!statsRes.ok) {
         setError("Не удалось загрузить статистику");
@@ -53,12 +53,10 @@ export default function AdminPage() {
   async function toggleMaintenance() {
     setMaintenanceLoading(true);
     try {
-      const res = await fetch("/api/admin/maintenance", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maintenance: !maintenance }),
-      });
+      const res = await fetch(
+        `/api/admin/maintenance?maintenance=${!maintenance}`,
+        { credentials: "include" }
+      );
       if (!res.ok) throw new Error("Ошибка");
       const data = await res.json();
       setMaintenance(Boolean(data.maintenance));
