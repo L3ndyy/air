@@ -12,49 +12,56 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [is500, setIs500] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      const { data, error: fetchError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (fetchError) {
-        setError("Не удалось загрузить профиль");
-        setLoading(false);
-        return;
-      }
-      if (data) {
-        setProfile(data);
-      } else {
-        const { data: upserted } = await supabase
-          .from("profiles")
-          .upsert(
-            {
-              id: user.id,
-              username: "user_" + user.id.slice(0, 8),
-              full_name: (user.user_metadata?.full_name as string) || "",
-            },
-            { onConflict: "id" }
-          )
-          .select("*")
-          .single();
-        if (upserted) setProfile(upserted);
-        else {
-          const { data: retry } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-          setProfile(retry ?? null);
-          if (!retry) setError("Ошибка создания профиля");
-        }
-      }
+  async function loadProfile() {
+    setLoading(true);
+    setError(null);
+    setIs500(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
-    })();
-    return () => { cancelled = true; };
+      return;
+    }
+    const { data, error: fetchError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (fetchError) {
+      setError("Не удалось загрузить профиль");
+      setIs500(true);
+      setLoading(false);
+      return;
+    }
+    if (data) {
+      setProfile(data);
+    } else {
+      const { data: upserted } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            username: "user_" + user.id.slice(0, 8),
+            full_name: (user.user_metadata?.full_name as string) || "",
+          },
+          { onConflict: "id" }
+        )
+        .select("*")
+        .single();
+      if (upserted) setProfile(upserted);
+      else {
+        const { data: retry } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        setProfile(retry ?? null);
+        if (!retry) setError("Ошибка создания профиля");
+      }
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadProfile();
   }, [supabase]);
 
   async function handleAvatarUpload(file: File) {
@@ -92,11 +99,22 @@ export default function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-gray-600">{error || "Профиль не найден"}</p>
-        <Link href="/chat">
-          <Button variant="secondary">Вернуться в чаты</Button>
-        </Link>
+        {is500 && (
+          <p className="max-w-sm text-sm text-gray-500">
+            Если после «Повторить» не помогло: откройте в Supabase раздел SQL Editor и выполните содержимое файла{" "}
+            <code className="rounded bg-gray-100 px-1">supabase/migrations/20240316000003_profiles_rls_fix.sql</code>.
+          </p>
+        )}
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="secondary" onClick={() => loadProfile()}>
+            Повторить
+          </Button>
+          <Link href="/chat">
+            <Button variant="secondary">Вернуться в чаты</Button>
+          </Link>
+        </div>
       </div>
     );
   }

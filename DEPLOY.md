@@ -15,6 +15,7 @@
 2. В **SQL Editor** выполните миграции по порядку:
    - `supabase/migrations/20240316000001_schema.sql`
    - `supabase/migrations/20240316000002_storage_avatars.sql`
+   - Если страница профиля возвращает ошибку 500 — выполните также `supabase/migrations/20240316000003_profiles_rls_fix.sql`.
 3. В **Database → Replication** включите Realtime для таблицы `messages`.
 4. В **Authentication → URL Configuration** добавьте в **Redirect URLs** ваш production URL (например `https://your-app.onreza.ru`).
 
@@ -44,6 +45,12 @@
    Либо нажмите **«↑ Импорт .env»** и загрузите файл `.env.local` (без секретов, только эти два ключа).
 
 5. Нажмите **«Задеплоить»**. После сборки получите домен вида `*.onreza.ru` или подключите свой.
+
+### Нагрузка и одновременные пользователи (Вариант A)
+
+- **Один инстанс на ONREZA** выдерживает обычно **десятки одновременных пользователей** (зависит от тарифа: CPU/RAM и лимитов в кабинете ONREZA).
+- **Supabase Free** ограничивает число одновременных подключений к БД и Realtime — см. [Supabase Pricing](https://supabase.com/pricing).
+- Для мессенджера с Realtime реалистичная оценка: **20–50** одновременных пользователей. При росте нагрузки сначала смотри лимиты Supabase, затем — возможность платного тарифа или второго инстанса на ONREZA.
 
 ## Вариант B: Self-hosted Supabase (Oracle Cloud) + Frontend
 
