@@ -24,8 +24,8 @@ npm run dev
 
 ```bash
 git add -A
-git status                    # проверить, что попало в коммит
-git commit -m "update 1"
+git status
+git commit -m "update 2"
 git push origin main
 ```
 

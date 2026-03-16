@@ -20,6 +20,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       isLoading,
       disabled,
       children,
+      onDrag,
+      onDragStart,
+      onDragEnd,
+      onDragOver,
+      onDragEnter,
+      onDragLeave,
       ...props
     },
     ref
