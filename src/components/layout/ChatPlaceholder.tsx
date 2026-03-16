@@ -23,7 +23,7 @@ export function ChatPlaceholder() {
 
   return (
     <div
-      className="relative flex flex-1 flex-col items-center justify-center overflow-hidden text-gray-500"
+      className="relative flex flex-1 flex-col items-center justify-center overflow-hidden [color:var(--air-text-muted)]"
       onMouseMove={onMouseMove}
       onMouseLeave={() => setMouse({ x: 0, y: 0 })}
     >
@@ -60,7 +60,7 @@ export function ChatPlaceholder() {
         <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] shadow-glow backdrop-blur-xl">
           <MessageCircle className="h-12 w-12 text-indigo-400/80" />
         </div>
-        <h2 className="mt-6 text-lg font-semibold text-gray-700">Выберите чат</h2>
+        <h2 className="mt-6 text-lg font-semibold [color:var(--air-text)]">Выберите чат</h2>
         <p className="mt-1 text-sm text-air-muted">или создайте новый</p>
       </div>
     </div>

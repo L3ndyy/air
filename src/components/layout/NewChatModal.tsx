@@ -71,11 +71,11 @@ export function NewChatModal({
           className="relative w-full max-w-md rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-6 shadow-glow backdrop-blur-xl"
         >
           <div className="flex items-center justify-between border-b border-[var(--air-glass-border)] pb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Новый чат</h2>
+            <h2 className="text-lg font-semibold [color:var(--air-text)]">Новый чат</h2>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-white/60 hover:text-gray-700"
+              className="flex h-8 w-8 items-center justify-center rounded-full [color:var(--air-text-muted)] transition hover:bg-white/60 dark:hover:bg-white/10 hover:[color:var(--air-text)]"
               aria-label="Закрыть"
             >
               <X className="h-5 w-5" />
@@ -89,7 +89,7 @@ export function NewChatModal({
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition ${
                 tab === "direct"
                   ? "bg-air-accent text-white"
-                  : "bg-white/50 text-gray-600 hover:bg-white/70"
+                  : "bg-white/50 dark:bg-white/10 [color:var(--air-text-muted)] hover:bg-white/70 dark:hover:bg-white/20"
               }`}
             >
               <MessageCircle className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function NewChatModal({
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition ${
                 tab === "group"
                   ? "bg-air-accent text-white"
-                  : "bg-white/50 text-gray-600 hover:bg-white/70"
+                  : "bg-white/50 dark:bg-white/10 [color:var(--air-text-muted)] hover:bg-white/70 dark:hover:bg-white/20"
               }`}
             >
               <Users className="h-4 w-4" />
@@ -111,7 +111,7 @@ export function NewChatModal({
 
           {tab === "direct" && (
             <div className="mt-5 space-y-3">
-              <label className="block text-sm font-medium text-gray-600">
+              <label className="block text-sm font-medium [color:var(--air-text-muted)]">
                 Username собеседника
               </label>
               <Input
@@ -143,18 +143,18 @@ export function NewChatModal({
                 value={groupName}
                 onChange={(e) => onGroupNameChange(e.target.value)}
               />
-              <label className="block text-sm font-medium text-gray-600">Участники</label>
+              <label className="block text-sm font-medium [color:var(--air-text-muted)]">Участники</label>
               <ul className="space-y-1.5">
                 {allProfiles.map((p) => (
                   <li key={p.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 transition hover:bg-white/50">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 transition hover:bg-white/50 dark:hover:bg-white/10">
                       <input
                         type="checkbox"
                         checked={groupMemberIds.includes(p.id)}
                         onChange={() => onToggleGroupMember(p.id)}
-                        className="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400"
+                        className="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400 dark:border-gray-600"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm [color:var(--air-text)]">
                         {p.full_name || p.username}
                       </span>
                     </label>

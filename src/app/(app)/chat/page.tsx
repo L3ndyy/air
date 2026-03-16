@@ -127,12 +127,18 @@ export default function ChatPage() {
     setCreating(true);
     setNewChatError(null);
     try {
-      const res = await fetch("/api/conversations/direct", {
+      let res = await fetch("/api/conversations/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ username }),
       });
+      if (res.status === 405) {
+        res = await fetch(
+          `/api/conversations/direct?username=${encodeURIComponent(username)}`,
+          { credentials: "include" }
+        );
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setNewChatError((data.error as string) || "Не удалось создать чат");

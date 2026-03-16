@@ -16,10 +16,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           type={type}
           ref={ref}
           className={cn(
-            "flex h-10 w-full rounded-xl border border-gray-200/80 bg-white/90 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400",
-            "focus:border-blue-400/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20",
+            "flex h-10 w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)]",
+            "focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20",
             "transition-colors",
-            error && "border-red-300 focus:border-red-400 focus:ring-red-400/20",
+            error && "border-red-400 focus:border-red-400 focus:ring-red-400/20",
             className
           )}
           {...props}

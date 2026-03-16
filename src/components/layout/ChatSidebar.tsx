@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { MessageCircle, User, Plus, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import type { Profile } from "@/types/database";
 
 export interface ConversationItem {
@@ -75,16 +76,16 @@ export function ChatSidebar({
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-air-accent text-white shadow-glow-sm">
             <MessageCircle className="h-5 w-5" />
           </div>
-          <span className="font-semibold text-gray-800">Air</span>
+          <span className="font-semibold [color:var(--air-text)]">Air</span>
         </div>
         <div className="relative mt-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 [color:var(--air-text-muted)]" />
           <input
             type="text"
             placeholder="Поиск"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[var(--air-glass-border)] bg-white/60 py-2 pl-9 pr-3 text-sm placeholder:text-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+            className="w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] py-2 pl-9 pr-3 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-200"
           />
         </div>
       </div>
@@ -127,8 +128,8 @@ export function ChatSidebar({
                 onClick={() => onSelect(c.id)}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
                   isSelected
-                    ? "bg-gradient-to-r from-indigo-50/90 to-transparent"
-                    : "hover:bg-white/50"
+                    ? "bg-gradient-to-r from-indigo-50/90 to-transparent dark:from-indigo-500/20"
+                    : "hover:bg-white/50 dark:hover:bg-white/10"
                 } ${isSelected ? "border-l-4 border-l-[var(--air-accent)] pl-[calc(0.75rem-4px)]" : ""}`}
               >
                 <Avatar
@@ -138,7 +139,7 @@ export function ChatSidebar({
                   className="h-10 w-10 shrink-0 text-sm"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-gray-800">{label}</p>
+                  <p className="truncate font-semibold [color:var(--air-text)]">{label}</p>
                   {c.lastMessage && (
                     <p className="truncate text-xs text-air-muted">{c.lastMessage.content}</p>
                   )}
@@ -154,12 +155,13 @@ export function ChatSidebar({
         })}
       </ul>
 
-      {/* Profile block */}
-      <div className="shrink-0 border-t border-[var(--air-glass-border)] p-3">
+      {/* Theme + Profile */}
+      <div className="shrink-0 border-t border-[var(--air-glass-border)] p-3 space-y-1">
+        <ThemeToggle />
         <Link
           href="/chat?panel=profile"
           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 ${
-            isProfileOpen ? "bg-indigo-50/80 text-gray-800" : "text-gray-600 hover:bg-white/50"
+            isProfileOpen ? "bg-indigo-50/80 dark:bg-indigo-500/20 [color:var(--air-text)]" : "[color:var(--air-text-muted)] hover:bg-white/50"
           }`}
         >
           <Avatar
@@ -167,7 +169,7 @@ export function ChatSidebar({
             fallback={profile?.full_name || profile?.username || "?"}
             size="sm"
           />
-          <span className="min-w-0 truncate font-medium">
+          <span className="min-w-0 truncate font-medium [color:var(--air-text)]">
             {profile?.full_name || profile?.username || "Профиль"}
           </span>
           <User className="ml-auto h-4 w-4 shrink-0 opacity-60" />

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemeScript } from "@/components/theme/ThemeScript";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -18,8 +20,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={inter.variable}>
-      <body className="min-h-screen font-sans">{children}</body>
+    <html lang="ru" className={inter.variable} suppressHydrationWarning>
+      <body className="min-h-screen font-sans">
+        <ThemeScript />
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

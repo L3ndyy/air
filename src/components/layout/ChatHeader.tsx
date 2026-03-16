@@ -18,7 +18,7 @@ export function ChatHeader({ title, avatarUrl, fallback, subtitle, onBack }: Cha
         <button
           type="button"
           onClick={onBack}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-600 transition hover:bg-white/50 md:hidden"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl [color:var(--air-text-muted)] transition hover:bg-white/50 dark:hover:bg-white/10 md:hidden"
           aria-label="Назад к чатам"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -26,7 +26,7 @@ export function ChatHeader({ title, avatarUrl, fallback, subtitle, onBack }: Cha
       )}
       <Avatar src={avatarUrl} fallback={fallback || title} size="md" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-gray-800">{title}</p>
+        <p className="truncate font-semibold [color:var(--air-text)]">{title}</p>
         {subtitle != null && (
           <div className="truncate text-xs text-air-muted">{subtitle}</div>
         )}
