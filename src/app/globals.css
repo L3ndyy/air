@@ -3,22 +3,69 @@
 @tailwind utilities;
 
 :root {
-  /* Air palette: light, minimal */
-  --air-bg: #fafafa;
+  /* Air palette: light, minimal + soft purple/blue tint */
+  --air-bg: #f5f4f8;
+  --air-bg-end: #ebe9f2;
   --air-surface: rgba(255, 255, 255, 0.85);
+  --air-glass: rgba(255, 255, 255, 0.65);
+  --air-glass-border: rgba(139, 92, 246, 0.12);
   --air-border: rgba(0, 0, 0, 0.06);
-  --air-accent: #3b82f6;
+  --air-accent: #6366f1;
   --air-accent-end: #8b5cf6;
   --air-muted: #6b7280;
+  --air-glow: rgba(99, 102, 241, 0.15);
 }
 
 body {
-  @apply bg-[var(--air-bg)] text-gray-800 antialiased;
+  background: linear-gradient(135deg, var(--air-bg) 0%, var(--air-bg-end) 100%);
+  @apply min-h-screen text-gray-800 antialiased;
 }
 
 /* Focus ring in accent color */
 input:focus-visible,
 button:focus-visible,
 textarea:focus-visible {
-  @apply outline-none ring-2 ring-blue-400/50 ring-offset-2 ring-offset-white;
+  @apply outline-none ring-2 ring-indigo-400/50 ring-offset-2 ring-offset-white;
+}
+
+/* Custom scrollbar */
+.overflow-y-auto,
+.overflow-auto {
+  scrollbar-width: thin;
+  scrollbar-color: var(--air-border) transparent;
+}
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.overflow-y-auto::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--air-border);
+}
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: var(--air-muted);
+  opacity: 0.4;
+}
+
+/* Stagger fade-in-up for chat list */
+@keyframes air-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.air-stagger-item {
+  animation: air-fade-in-up 0.3s ease-out forwards;
 }

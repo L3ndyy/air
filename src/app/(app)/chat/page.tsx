@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ChatPlaceholder } from "@/components/layout/ChatPlaceholder";
 import { ChatHeader } from "@/components/layout/ChatHeader";
+import { ChatSidebar } from "@/components/layout/ChatSidebar";
+import { NewChatModal } from "@/components/layout/NewChatModal";
 import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
-import { Button, Input } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import type { Conversation, Profile } from "@/types/database";
 
 interface ConversationWithDetails extends Conversation {
@@ -69,8 +72,8 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
-  const [showNewChat, setShowNewChat] = useState(false);
-  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [newChatUsername, setNewChatUsername] = useState("");
   const [newChatError, setNewChatError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -81,16 +84,25 @@ export default function ChatPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    setShowNewChat(searchParams.get("new") === "1");
+    setShowNewChatModal((prev) => prev || searchParams.get("new") === "1");
   }, [searchParams]);
 
   useEffect(() => {
-    if (!showNewGroup) return;
+    if (!showNewChatModal) return;
     (async () => {
       const { data } = await supabase.from("profiles").select("*").order("username");
       setAllProfiles((data ?? []).filter((p) => p.id !== currentUser?.id));
     })();
-  }, [showNewGroup, currentUser?.id, supabase]);
+  }, [showNewChatModal, currentUser?.id, supabase]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      setProfile(data ?? null);
+    })();
+  }, [supabase]);
 
   const refreshConversations = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -149,7 +161,7 @@ export default function ChatPage() {
       const existingWithOther = otherParts?.find((p) => convIds.includes(p.conversation_id));
       if (existingWithOther) {
         setSelectedId(existingWithOther.conversation_id);
-        setShowNewChat(false);
+        setShowNewChatModal(false);
         setNewChatUsername("");
         setCreating(false);
         return;
@@ -171,7 +183,7 @@ export default function ChatPage() {
     ]);
     await refreshConversations();
     setSelectedId(newConv.id);
-    setShowNewChat(false);
+    setShowNewChatModal(false);
     setNewChatUsername("");
     setCreating(false);
   }
@@ -194,7 +206,7 @@ export default function ChatPage() {
     }
     await refreshConversations();
     setSelectedId(newConv.id);
-    setShowNewGroup(false);
+    setShowNewChatModal(false);
     setGroupName("");
     setGroupMemberIds([]);
     setCreatingGroup(false);
@@ -215,120 +227,52 @@ export default function ChatPage() {
   const avatarUrl = selected?.type === "group" ? selected.avatar_url : selected?.otherParticipant?.avatar_url;
   const fallback = selected?.type === "group" ? (selected.name ?? "Г") : ((selected?.otherParticipant?.full_name || selected?.otherParticipant?.username) ?? "?");
   const showProfilePanel = searchParams.get("panel") === "profile";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function closeProfilePanel() {
     router.replace("/chat");
   }
 
+  function handleSelectChat(id: string) {
+    setSelectedId(id);
+    setSidebarOpen(false);
+  }
+
   return (
     <div className="relative flex h-full">
-      <div className="flex w-80 shrink-0 flex-col border-r border-gray-200/60 bg-white/80 backdrop-blur-xl">
-        <div className="flex items-center justify-between border-b border-gray-200/60 px-3 py-2">
-          <h2 className="text-sm font-medium text-gray-500">Чаты</h2>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => { setShowNewChat(true); setShowNewGroup(false); }}
-              className="rounded-lg px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-            >
-              Личный
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowNewGroup(true); setShowNewChat(false); }}
-              className="rounded-lg px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-            >
-              Группа
-            </button>
-          </div>
-        </div>
-        {showNewChat && (
-          <div className="border-b border-gray-200/60 p-3 space-y-2">
-            <p className="text-xs text-gray-500">Начать личный чат</p>
-            <Input
-              placeholder="Username"
-              value={newChatUsername}
-              onChange={(e) => setNewChatUsername(e.target.value)}
-            />
-            {newChatError && <p className="text-xs text-red-500">{newChatError}</p>}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={startDirectChat} isLoading={creating}>
-                Начать
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setShowNewChat(false); setNewChatError(null); }}>
-                Отмена
-              </Button>
-            </div>
-          </div>
+      {/* Mobile overlay when sidebar is open */}
+      <div
+        className={cn(
+          "fixed inset-0 z-30 bg-black/20 backdrop-blur-[2px] transition md:hidden",
+          sidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none invisible opacity-0"
         )}
-        {showNewGroup && (
-          <div className="border-b border-gray-200/60 p-3 space-y-2 max-h-64 overflow-y-auto">
-            <p className="text-xs text-gray-500">Новая группа</p>
-            <Input
-              placeholder="Название группы"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-            />
-            <p className="text-xs text-gray-500">Участники</p>
-            <ul className="space-y-1">
-              {allProfiles.map((p) => (
-                <li key={p.id}>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      checked={groupMemberIds.includes(p.id)}
-                      onChange={() => toggleGroupMember(p.id)}
-                      className="rounded border-gray-300"
-                    />
-                    <span>{p.full_name || p.username}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={createGroup} isLoading={creatingGroup} disabled={!groupName.trim()}>
-                Создать
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setShowNewGroup(false); setGroupName(""); setGroupMemberIds([]); }}>
-                Отмена
-              </Button>
-            </div>
-          </div>
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden
+      />
+      <ChatSidebar
+        conversations={conversations}
+        selectedId={selectedId}
+        onSelect={handleSelectChat}
+        profile={profile}
+        onNewChatClick={() => setShowNewChatModal(true)}
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-300 ease-out md:relative md:z-auto",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
-        <ul className="flex-1 overflow-y-auto">
-          {conversations.map((c) => {
-            const label =
-              c.type === "group"
-                ? (c.name ?? "Группа")
-                : ((c.otherParticipant?.full_name || c.otherParticipant?.username) ?? "Чат");
-            const isSelected = c.id === selectedId;
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(c.id)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm ${
-                    isSelected ? "bg-gray-100/80" : "hover:bg-gray-50/80"
-                  }`}
-                >
-                  <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center text-gray-700 font-medium">
-                    {c.type === "group" ? (c.name?.[0] ?? "Г") : ((c.otherParticipant?.full_name?.[0] || c.otherParticipant?.username?.[0]) ?? "?")}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-gray-800">{label}</p>
-                    {c.lastMessage && (
-                      <p className="truncate text-xs text-gray-500">
-                        {c.lastMessage.content}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      />
       <div className="flex flex-1 flex-col min-w-0">
+        {!selectedId && (
+          <div className="flex h-12 shrink-0 items-center border-b border-[var(--air-glass-border)] bg-[var(--air-glass)] px-3 backdrop-blur-xl md:hidden">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 transition hover:bg-white/50"
+              aria-label="Меню"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
+        )}
         {selectedId && selected ? (
           <>
             <ChatHeader
@@ -336,6 +280,10 @@ export default function ChatPage() {
               avatarUrl={avatarUrl}
               fallback={fallback}
               subtitle={<TypingIndicator conversationId={selectedId} currentUserId={currentUser?.id} />}
+              onBack={() => {
+                setSelectedId(null);
+                setSidebarOpen(true);
+              }}
             />
             <MessageList conversationId={selectedId} currentUserId={currentUser?.id ?? ""} />
             <Composer conversationId={selectedId} />
@@ -344,6 +292,29 @@ export default function ChatPage() {
           <ChatPlaceholder />
         )}
       </div>
+      <NewChatModal
+        open={showNewChatModal}
+        onClose={() => {
+          setShowNewChatModal(false);
+          setNewChatError(null);
+          setNewChatUsername("");
+          setGroupName("");
+          setGroupMemberIds([]);
+        }}
+        initialTab={searchParams.get("new") === "1" ? "direct" : "direct"}
+        directUsername={newChatUsername}
+        onDirectUsernameChange={setNewChatUsername}
+        directError={newChatError}
+        onStartDirect={startDirectChat}
+        directLoading={creating}
+        groupName={groupName}
+        onGroupNameChange={setGroupName}
+        allProfiles={allProfiles}
+        groupMemberIds={groupMemberIds}
+        onToggleGroupMember={toggleGroupMember}
+        onCreateGroup={createGroup}
+        groupLoading={creatingGroup}
+      />
       {showProfilePanel && (
         <ProfilePanel onClose={closeProfilePanel} />
       )}
