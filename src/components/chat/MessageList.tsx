@@ -51,6 +51,7 @@ export function MessageList({ conversationId, currentUserId }: MessageListProps)
         <MessageBubble
           key={msg.id}
           content={msg.content}
+          attachmentUrl={msg.attachment_url ?? undefined}
           isOwn={msg.sender_id === currentUserId}
           createdAt={msg.created_at}
         />

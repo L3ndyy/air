@@ -2,18 +2,26 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send } from "lucide-react";
+import { Send, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface ComposerProps {
   conversationId: string;
 }
 
+function getExtension(filename: string): string {
+  const i = filename.lastIndexOf(".");
+  return i >= 0 ? filename.slice(i) : "";
+}
+
 export function Composer({ conversationId }: ComposerProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const supabase = createClient();
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const channel = supabase.channel(`presence:${conversationId}`);
@@ -51,47 +59,108 @@ export function Composer({ conversationId }: ComposerProps) {
 
   const send = useCallback(async () => {
     const text = content.trim();
-    if (!text || sending) return;
+    const hasContent = text || pendingFile;
+    if (!hasContent || sending) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setSending(true);
+    setUploadError(null);
+    let attachmentUrl: string | null = null;
+    if (pendingFile) {
+      const ext = getExtension(pendingFile.name);
+      const path = `${conversationId}/${user.id}/${crypto.randomUUID()}${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("chat-files")
+        .upload(path, pendingFile, { upsert: false });
+      if (uploadErr) {
+        setUploadError(uploadErr.message);
+        setSending(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("chat-files").getPublicUrl(path);
+      attachmentUrl = urlData.publicUrl;
+      setPendingFile(null);
+    }
     await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: user.id,
-      content: text,
+      content: text || "",
+      attachment_url: attachmentUrl,
     });
     setContent("");
     setSending(false);
-  }, [content, conversationId, sending, supabase]);
+  }, [content, conversationId, pendingFile, sending, supabase]);
+
+  const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setPendingFile(file);
+    e.target.value = "";
+  }, []);
+
+  const canSend = content.trim() || pendingFile;
 
   return (
-    <div className="flex shrink-0 gap-2 border-t border-gray-200/60 bg-white/80 p-3 backdrop-blur-xl">
-      <input
-        type="text"
-        placeholder="Сообщение..."
-        value={content}
-        onChange={(e) => {
-          setContent(e.target.value);
-          onInput();
-        }}
-        onFocus={onInput}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            send();
-          }
-        }}
-        className="flex-1 rounded-xl border border-gray-200/80 bg-white px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
-      />
-      <Button
-        type="button"
-        size="md"
-        onClick={send}
-        disabled={!content.trim() || sending}
-        className="shrink-0"
-      >
-        <Send className="h-5 w-5" />
-      </Button>
+    <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-glass)] p-3 backdrop-blur-xl">
+      {pendingFile && (
+        <div className="flex items-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
+          <Paperclip className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
+          <span className="min-w-0 truncate">{pendingFile.name}</span>
+          <button
+            type="button"
+            onClick={() => setPendingFile(null)}
+            className="shrink-0 rounded p-0.5 [color:var(--air-text-muted)] hover:[color:var(--air-text)]"
+            aria-label="Убрать файл"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {uploadError && (
+        <p className="text-xs text-red-500">{uploadError}</p>
+      )}
+      <div className="flex gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar"
+          onChange={onFileChange}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] [color:var(--air-text-muted)] transition hover:bg-white/10 hover:[color:var(--air-text)]"
+          aria-label="Прикрепить файл"
+        >
+          <Paperclip className="h-5 w-5" />
+        </button>
+        <input
+          type="text"
+          placeholder="Сообщение..."
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+            onInput();
+          }}
+          onFocus={onInput}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          className="flex-1 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-4 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+        />
+        <Button
+          type="button"
+          size="md"
+          onClick={send}
+          disabled={!canSend || sending}
+          className="shrink-0"
+        >
+          <Send className="h-5 w-5" />
+        </Button>
+      </div>
     </div>
   );
 }
