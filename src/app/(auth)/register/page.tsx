@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const supabase = createClient();
 
@@ -84,20 +85,46 @@ export default function RegisterPage() {
       setError("Аккаунт создан, но не удалось сохранить username. Измените в профиле.");
     }
     setLoading(false);
+    const needsConfirmation = !authData.session;
+    if (needsConfirmation) {
+      setSuccess(true);
+      return;
+    }
     router.push("/chat");
     router.refresh();
   }
 
+  if (success) {
+    return (
+      <Card className="p-0 overflow-hidden shadow-air-md">
+        <CardHeader className="text-center pb-2 pt-8">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white">
+            <MessageCircle className="h-7 w-7" />
+          </div>
+          <CardTitle className="text-xl">Проверьте почту</CardTitle>
+          <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            Мы отправили ссылку для подтверждения на <strong>{email}</strong>. Перейдите по ссылке из письма, затем войдите в аккаунт.
+          </p>
+        </CardHeader>
+        <CardContent className="pb-8 pt-2">
+          <Link href="/login">
+            <Button className="w-full">Перейти к входу</Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="p-0 overflow-hidden">
-      <CardHeader className="text-center pb-2">
+    <Card className="p-0 overflow-hidden shadow-air-md">
+      <CardHeader className="text-center pb-2 pt-6">
         <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white">
           <MessageCircle className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl">Air</CardTitle>
         <p className="text-sm text-gray-500">Создайте аккаунт</p>
       </CardHeader>
-      <CardContent className="pt-2">
+      <CardContent className="pt-2 pb-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="email"
@@ -160,3 +187,4 @@ export default function RegisterPage() {
     </Card>
   );
 }
+

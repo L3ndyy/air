@@ -27,6 +27,8 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+const EMOJI_PREFIX = "emoji:";
+
 export function Avatar({
   src,
   alt = "",
@@ -35,6 +37,8 @@ export function Avatar({
   className,
 }: AvatarProps) {
   const initials = getInitials(fallback || "?");
+  const isEmoji = src?.startsWith(EMOJI_PREFIX);
+  const emojiChar = isEmoji ? src.slice(EMOJI_PREFIX.length) : null;
 
   return (
     <span
@@ -44,7 +48,11 @@ export function Avatar({
         className
       )}
     >
-      {src ? (
+      {emojiChar ? (
+        <span className="leading-none" style={{ fontSize: size === "sm" ? "1rem" : size === "lg" ? "1.75rem" : "1.25rem" }}>
+          {emojiChar}
+        </span>
+      ) : src && !isEmoji ? (
         <Image
           src={src}
           alt={alt || fallback}

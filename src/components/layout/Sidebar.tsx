@@ -43,12 +43,12 @@ export function Sidebar() {
           Новый чат
         </Link>
       </div>
-      <div className="border-t border-gray-200/60 p-2">
+      <div className="border-t border-gray-200/60 p-3">
         <Link
           href="/profile"
-          className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
             pathname === "/profile"
-              ? "bg-gray-100/80 text-gray-800"
+              ? "bg-blue-50/80 text-gray-800"
               : "text-gray-600 hover:bg-gray-100/80"
           }`}
         >
@@ -57,10 +57,10 @@ export function Sidebar() {
             fallback={profile?.full_name || profile?.username || "?"}
             size="sm"
           />
-          <span className="truncate">
+          <span className="min-w-0 truncate font-medium">
             {profile?.full_name || profile?.username || "Профиль"}
           </span>
-          <User className="ml-auto h-4 w-4 opacity-60" />
+          <User className="ml-auto h-4 w-4 shrink-0 opacity-60" />
         </Link>
       </div>
     </aside>
