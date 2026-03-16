@@ -73,7 +73,12 @@ export function Composer({ conversationId }: ComposerProps) {
         .from("chat-files")
         .upload(path, pendingFile, { upsert: false });
       if (uploadErr) {
-        setUploadError(uploadErr.message);
+        const msg =
+          uploadErr.message?.toLowerCase().includes("bucket") ||
+          uploadErr.message?.toLowerCase().includes("not found")
+            ? "Хранилище файлов не настроено. В Supabase выполните миграцию 20240316000006_chat_attachments.sql (Storage → создать бакет chat-files)."
+            : uploadErr.message;
+        setUploadError(msg);
         setSending(false);
         return;
       }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft } from "lucide-react";
+import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface Stats {
@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [maintenance, setMaintenance] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -27,17 +29,45 @@ export default function AdminPage() {
         router.replace("/chat");
         return;
       }
-      const res = await fetch("/api/admin/stats", { credentials: "include" });
-      if (!res.ok) {
+      const [statsRes, maintRes] = await Promise.all([
+        fetch("/api/admin/stats", { credentials: "include" }),
+        fetch("/api/settings/maintenance", { credentials: "include" }),
+      ]);
+      if (!statsRes.ok) {
         setError("Не удалось загрузить статистику");
         setLoading(false);
         return;
       }
-      const data = await res.json();
+      const data = await statsRes.json();
       setStats(data);
+      try {
+        const maint = await maintRes.json();
+        setMaintenance(Boolean(maint.maintenance));
+      } catch {
+        setMaintenance(false);
+      }
       setLoading(false);
     })();
   }, [router]);
+
+  async function toggleMaintenance() {
+    setMaintenanceLoading(true);
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maintenance: !maintenance }),
+      });
+      if (!res.ok) throw new Error("Ошибка");
+      const data = await res.json();
+      setMaintenance(Boolean(data.maintenance));
+    } catch {
+      alert("Не удалось изменить режим");
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  }
 
   async function handleOptimize() {
     setOptimizing(true);
@@ -93,6 +123,29 @@ export default function AdminPage() {
         <p className="mb-8 text-sm [color:var(--air-text-muted)]">
           Статистика и состояние приложения
         </p>
+
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-5 backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-sm [color:var(--air-text)]">
+            <Wrench className="h-4 w-4 text-amber-500" />
+            Ведётся тех. работы
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={maintenance}
+            disabled={maintenanceLoading}
+            onClick={toggleMaintenance}
+            className={`relative h-7 w-12 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              maintenance ? "bg-amber-500" : "bg-[var(--air-glass-border)]"
+            }`}
+          >
+            <span
+              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                maintenance ? "left-6" : "left-1"
+              }`}
+            />
+          </button>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-5 backdrop-blur-xl">

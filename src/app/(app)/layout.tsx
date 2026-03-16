@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getMaintenance, isAdminEmail } from "@/lib/admin";
+import MaintenancePage from "@/components/MaintenancePage";
 
 export default async function AppLayout({
   children,
@@ -11,6 +13,11 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const maintenance = await getMaintenance();
+  if (maintenance && !isAdminEmail(user.email ?? undefined)) {
+    return <MaintenancePage />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-air-gradient">
