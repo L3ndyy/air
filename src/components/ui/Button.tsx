@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -20,18 +19,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       isLoading,
       disabled,
       children,
-      onDrag,
-      onDragStart,
-      onDragEnd,
-      onDragOver,
-      onDragEnter,
-      onDragLeave,
       ...props
     },
     ref
   ) => {
     const base =
-      "inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center rounded-xl font-medium transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100";
     const variants = {
       primary:
         "bg-gradient-to-r from-blue-400 to-purple-500 text-white shadow-air hover:from-blue-500 hover:to-purple-600",
@@ -47,11 +40,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     return (
-      <motion.button
+      <button
         ref={ref}
+        type="button"
         className={cn(base, variants[variant], sizes[size], className)}
-        whileHover={{ scale: disabled ? 1 : 1.02 }}
-        whileTap={{ scale: disabled ? 1 : 0.98 }}
         disabled={disabled || isLoading}
         {...props}
       >
@@ -60,7 +52,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           children
         )}
-      </motion.button>
+      </button>
     );
   }
 );
