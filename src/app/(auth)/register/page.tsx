@@ -33,11 +33,20 @@ export default function RegisterPage() {
     }
     let cancelled = false;
     const t = setTimeout(async () => {
-      const res = await fetch(
-        `/api/users/check?username=${encodeURIComponent(username.trim().toLowerCase())}`
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!cancelled) setUsernameAvailable(Boolean(data.available));
+      try {
+        const res = await fetch(
+          `/api/users/check?username=${encodeURIComponent(username.trim().toLowerCase())}`,
+          { cache: "no-store" }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        // Показываем "занят" только когда API явно вернул available: false
+        setUsernameAvailable(
+          typeof data.available === "boolean" ? data.available : null
+        );
+      } catch {
+        if (!cancelled) setUsernameAvailable(null);
+      }
     }, 300);
     return () => {
       cancelled = true;

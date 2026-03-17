@@ -1,39 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
+const headers = {
+  "Cache-Control": "no-store, no-cache, max-age=0",
+};
+
 /**
  * GET /api/users/check?username=xxx
  * Returns { available: boolean }. Does not require auth (for registration form).
- * Username is free if no confirmed user has it (unconfirmed signups don't block).
  */
 export async function GET(request: NextRequest) {
-  try {
-    const username = request.nextUrl.searchParams.get("username")?.trim().toLowerCase();
-    if (!username || username.length < 3) {
-      return NextResponse.json({ available: false }, { status: 200 });
-    }
-    if (!/^[a-z0-9_]+$/.test(username)) {
-      return NextResponse.json({ available: false }, { status: 200 });
-    }
+  const username = request.nextUrl.searchParams.get("username")?.trim().toLowerCase();
+  if (!username || username.length < 3) {
+    return NextResponse.json({ available: false }, { status: 200, headers });
+  }
+  if (!/^[a-z0-9_]+$/.test(username)) {
+    return NextResponse.json({ available: false }, { status: 200, headers });
+  }
 
+  try {
     const admin = createAdminClient();
-    const { data, error } = await admin.rpc("check_username_available", {
+    // Сначала пробуем RPC (если миграция применена)
+    const { data: rpcData, error: rpcError } = await admin.rpc("check_username_available", {
       p_username: username,
     });
-
-    if (!error && typeof data === "boolean") {
-      return NextResponse.json({ available: data });
+    if (!rpcError && typeof rpcData === "boolean") {
+      return NextResponse.json({ available: rpcData }, { status: 200, headers });
     }
-
-    // Fallback: если RPC нет или ошибка — проверяем по profiles (без учёта подтверждения почты)
+    // Иначе проверяем по таблице profiles
     const { data: profile } = await admin
       .from("profiles")
       .select("id")
       .eq("username", username)
       .maybeSingle();
-
-    return NextResponse.json({ available: !profile });
+    return NextResponse.json({ available: !profile }, { status: 200, headers });
   } catch {
-    return NextResponse.json({ available: false }, { status: 200 });
+    // При любой ошибке считаем username свободным, чтобы не блокировать регистрацию
+    return NextResponse.json({ available: true }, { status: 200, headers });
   }
 }
