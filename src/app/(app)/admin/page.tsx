@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench } from "lucide-react";
+import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface Stats {
@@ -12,14 +12,26 @@ interface Stats {
   storage: string;
 }
 
+interface AdminUser {
+  id: string;
+  email: string;
+  created_at: string;
+  email_confirmed_at: string | null;
+  username: string | null;
+  full_name: string | null;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [passwordId, setPasswordId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,9 +41,10 @@ export default function AdminPage() {
         router.replace("/chat");
         return;
       }
-      const [statsRes, maintRes] = await Promise.all([
+      const [statsRes, maintRes, usersRes] = await Promise.all([
         fetch("/api/admin/stats", { credentials: "include" }),
         fetch("/api/admin/maintenance", { credentials: "include" }),
+        fetch("/api/admin/users", { credentials: "include" }),
       ]);
       if (!statsRes.ok) {
         setError("Не удалось загрузить статистику");
@@ -45,6 +58,10 @@ export default function AdminPage() {
         setMaintenance(Boolean(maint.maintenance));
       } catch {
         setMaintenance(false);
+      }
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setAdminUsers(usersData.users ?? []);
       }
       setLoading(false);
     })();
@@ -78,6 +95,52 @@ export default function AdminPage() {
       alert(data.message ?? "Готово");
     } finally {
       setOptimizing(false);
+    }
+  }
+
+  async function handleDeleteUser(u: AdminUser) {
+    if (!confirm(`Удалить пользователя ${u.email} (${u.username ?? u.id})? Это действие нельзя отменить.`)) return;
+    setDeletingId(u.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", userId: u.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Ошибка удаления");
+        return;
+      }
+      setAdminUsers((prev) => prev.filter((x) => x.id !== u.id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleSetPassword(u: AdminUser) {
+    setPasswordId(u.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_password", userId: u.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Ошибка");
+        return;
+      }
+      const password = data.password as string;
+      const msg = `Временный пароль для входа под ${u.email}:\n\n${password}\n\nСкопируйте и сохраните. Пользователю лучше сменить пароль в профиле.`;
+      alert(msg);
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(password);
+      }
+    } finally {
+      setPasswordId(null);
     }
   }
 
@@ -192,6 +255,63 @@ export default function AdminPage() {
             <Zap className="h-4 w-4" />
             {optimizing ? "Выполняется…" : "Оптимизировать"}
           </Button>
+        </div>
+
+        <div className="mt-10">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold [color:var(--air-text)]">
+            <Users className="h-5 w-5" />
+            Пользователи
+          </h2>
+          <p className="mb-4 text-xs [color:var(--air-text-muted)]">
+            Логин — это email. Пароль в базе хранится в зашифрованном виде, его нельзя посмотреть. Можно задать временный пароль и войти под пользователем.
+          </p>
+          <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] overflow-hidden">
+            <div className="divide-y divide-[var(--air-glass-border)]">
+              {adminUsers.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm [color:var(--air-text-muted)]">
+                  Нет пользователей
+                </div>
+              ) : (
+                adminUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium [color:var(--air-text)]">
+                        {u.email || "—"}
+                      </p>
+                      <p className="truncate text-xs [color:var(--air-text-muted)]">
+                        @{u.username ?? "user"} · {u.full_name || "—"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSetPassword(u)}
+                        disabled={passwordId !== null}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-1.5 text-xs [color:var(--air-text)] hover:bg-[var(--air-glass)] disabled:opacity-50"
+                        title="Задать временный пароль и скопировать (чтобы войти под этим пользователем)"
+                      >
+                        <Key className="h-3.5 w-3.5" />
+                        {passwordId === u.id ? "…" : "Временный пароль"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(u)}
+                        disabled={deletingId !== null}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                        title="Полностью удалить пользователя"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {deletingId === u.id ? "…" : "Удалить"}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

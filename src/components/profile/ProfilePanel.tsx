@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { X } from "lucide-react";
+import { X, LogOut, Lock } from "lucide-react";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { Button, Input } from "@/components/ui";
 import type { Profile } from "@/types/database";
 
 interface ProfilePanelProps {
@@ -12,11 +14,67 @@ interface ProfilePanelProps {
 }
 
 export function ProfilePanel({ onClose }: ProfilePanelProps) {
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const supabase = createClient();
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    if (newPassword.length < 6) {
+      setPasswordError("Новый пароль не менее 6 символов");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Пароли не совпадают");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        setPasswordError("Не удалось определить email");
+        return;
+      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        setPasswordError("Неверный текущий пароль");
+        return;
+      }
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) {
+        setPasswordError(updateError.message);
+        return;
+      }
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +187,61 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   profile={profile}
                   onSaved={(updated) => updated && setProfile((prev) => (prev ? { ...prev, ...updated } : null))}
                 />
+              </div>
+              <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
+                <p className="mb-3 flex items-center gap-2 text-sm font-medium [color:var(--air-text-muted)]">
+                  <Lock className="h-4 w-4" />
+                  Безопасность
+                </p>
+                <form onSubmit={handleChangePassword} className="space-y-3">
+                  <Input
+                    type="password"
+                    placeholder="Текущий пароль"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <Input
+                    type="password"
+                    placeholder="Новый пароль (от 6 символов)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <Input
+                    type="password"
+                    placeholder="Повторите новый пароль"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  {passwordError && (
+                    <p className="text-sm text-red-500">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="text-sm text-emerald-600">Пароль изменён</p>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    size="sm"
+                    disabled={changingPassword}
+                  >
+                    {changingPassword ? "Сохранение…" : "Сменить пароль"}
+                  </Button>
+                </form>
+              </div>
+              <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full gap-2"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {loggingOut ? "Выход…" : "Выйти из аккаунта"}
+                </Button>
               </div>
             </div>
           )}

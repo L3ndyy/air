@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Eye, EyeOff } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,19 +26,27 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (err) {
-      const message =
-        err.message === "Invalid login credentials"
-          ? "Неверный email или пароль. Проверьте данные или зарегистрируйтесь."
-          : err.message;
-      setError(message);
-      return;
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        let message =
+          err.message === "Invalid login credentials"
+            ? "Неверный email или пароль. Проверьте данные или зарегистрируйтесь."
+            : err.message;
+        if (err.message?.toLowerCase().includes("request") || err.message?.toLowerCase().includes("api") || err.status === 400) {
+          message += " Если пароль верный — задайте временный пароль в админке (Пользователи → Временный пароль) и войдите с ним.";
+        }
+        setError(message);
+        return;
+      }
+      router.push("/chat");
+      router.refresh();
+    } catch (e) {
+      setError("Ошибка соединения. Проверьте настройки деплоя: NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/chat");
-    router.refresh();
   }
 
   return (
@@ -59,14 +68,25 @@ function LoginForm() {
             required
             autoComplete="email"
           />
-          <Input
-            type="password"
-            placeholder="Пароль"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder="Пароль"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}
