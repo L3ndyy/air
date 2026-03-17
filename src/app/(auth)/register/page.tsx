@@ -146,7 +146,7 @@ export default function RegisterPage() {
           />
           <Input
             type="text"
-            placeholder="Username (как в Telegram)"
+            placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
