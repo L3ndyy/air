@@ -25,8 +25,8 @@ export function PushNotificationsSetup() {
         if (cancelled || permission !== "granted") return;
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          // Cast to ArrayBuffer to satisfy older TypeScript DOM lib typings
-          applicationServerKey: urlBase64ToUint8Array(vapid).buffer,
+          // DOM тип ожидает BufferSource; явно приводим, чтобы не ругался TypeScript
+          applicationServerKey: urlBase64ToUint8Array(vapid) as unknown as BufferSource,
         });
         if (cancelled) return;
         await fetch("/api/push/subscribe", {
