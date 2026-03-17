@@ -21,11 +21,19 @@ export async function GET(request: NextRequest) {
       p_username: username,
     });
 
-    if (error) {
-      return NextResponse.json({ available: false }, { status: 200 });
+    if (!error && typeof data === "boolean") {
+      return NextResponse.json({ available: data });
     }
-    return NextResponse.json({ available: data === true });
-  } catch (e) {
+
+    // Fallback: если RPC нет или ошибка — проверяем по profiles (без учёта подтверждения почты)
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();
+
+    return NextResponse.json({ available: !profile });
+  } catch {
     return NextResponse.json({ available: false }, { status: 200 });
   }
 }
