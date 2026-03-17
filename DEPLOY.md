@@ -26,7 +26,9 @@
    - Для удаления сообщений — выполните `supabase/migrations/20240316000010_messages_delete_policy.sql`.
    - Для push-уведомлений — выполните `supabase/migrations/20240316000011_push_subscriptions.sql`.
 3. В **Database → Replication** включите Realtime для таблицы `messages`.
-4. В **Authentication → URL Configuration** добавьте в **Redirect URLs** ваш production URL (например `https://your-app.onreza.ru`).
+4. В **Authentication → URL Configuration**:
+   - **Site URL** укажите ваш production-адрес (например `https://air-air.onreza.app`).
+   - В **Redirect URLs** добавьте **точный** URL обработки подтверждения почты, например: `https://ваш-домен.onreza.app/auth/callback`. Без этого ссылка из письма после регистрации не сработает и пользователи не смогут войти (ошибка 400 / «подтвердите почту»).
 
 ## Вариант A: Frontend на ONREZA (РФ)
 
