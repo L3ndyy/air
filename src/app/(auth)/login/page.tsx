@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { MessageCircle } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -82,5 +82,30 @@ export default function LoginPage() {
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card className="overflow-hidden border-gray-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+          <CardHeader className="text-center pb-1 pt-8">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white shadow-lg shadow-blue-200/40">
+              <MessageCircle className="h-7 w-7" />
+            </div>
+            <CardTitle className="text-2xl font-semibold tracking-tight">Air</CardTitle>
+            <p className="mt-1 text-sm text-gray-500">Войдите в аккаунт</p>
+          </CardHeader>
+          <CardContent className="px-6 pb-8 pt-4">
+            <div className="flex justify-center py-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+            </div>
+          </CardContent>
+        </Card>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
