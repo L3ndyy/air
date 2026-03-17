@@ -25,7 +25,8 @@ export function PushNotificationsSetup() {
         if (cancelled || permission !== "granted") return;
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapid),
+          // Cast to ArrayBuffer to satisfy older TypeScript DOM lib typings
+          applicationServerKey: urlBase64ToUint8Array(vapid).buffer,
         });
         if (cancelled) return;
         await fetch("/api/push/subscribe", {
