@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 import { Avatar } from "@/components/ui";
 
 interface ChatHeaderProps {
@@ -11,9 +11,11 @@ interface ChatHeaderProps {
   profileUsername?: string | null;
   subtitle?: React.ReactNode;
   onBack?: () => void;
+  isGroup?: boolean;
+  onOpenGroupSettings?: () => void;
 }
 
-export function ChatHeader({ title, avatarUrl, fallback, profileUsername, subtitle, onBack }: ChatHeaderProps) {
+export function ChatHeader({ title, avatarUrl, fallback, profileUsername, subtitle, onBack, isGroup, onOpenGroupSettings }: ChatHeaderProps) {
   const profileLink = profileUsername ? `/user/${encodeURIComponent(profileUsername)}` : null;
   const headerContent = (
     <>
@@ -48,6 +50,16 @@ export function ChatHeader({ title, avatarUrl, fallback, profileUsername, subtit
         </Link>
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-3">{headerContent}</div>
+      )}
+      {isGroup && onOpenGroupSettings && (
+        <button
+          type="button"
+          onClick={onOpenGroupSettings}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
+          aria-label="Настройки группы"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
       )}
     </header>
   );

@@ -1,25 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const body = await request.json().catch(() => ({}));
-    const conversationId = body.conversationId as string | undefined;
-    const title = (body.title as string) || "Air";
-    const messageBody = (body.body as string) || "Новое сообщение";
-    if (!conversationId) {
-      return NextResponse.json({ error: "conversationId required" }, { status: 400 });
-    }
+async function sendNotify(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  title: string,
+  messageBody: string
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!conversationId) {
+    return NextResponse.json({ error: "conversationId required" }, { status: 400 });
+  }
 
+  try {
     const admin = createAdminClient();
     const { data: participants } = await admin
       .from("participants")
@@ -66,4 +64,22 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const body = await request.json().catch(() => ({}));
+  const conversationId = body.conversationId as string | undefined;
+  const title = (body.title as string) || "Air";
+  const messageBody = (body.body as string) || "Новое сообщение";
+  return sendNotify(supabase, conversationId ?? "", title, messageBody);
+}
+
+/** GET fallback for hosts that block POST to /api (e.g. 405). Same params in query. */
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const conversationId = request.nextUrl.searchParams.get("conversationId") ?? "";
+  const title = request.nextUrl.searchParams.get("title") || "Air";
+  const body = request.nextUrl.searchParams.get("body") || "Новое сообщение";
+  return sendNotify(supabase, conversationId, title, body);
 }

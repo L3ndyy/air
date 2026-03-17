@@ -12,6 +12,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
+import { GroupSettingsPanel } from "@/components/group/GroupSettingsPanel";
 import { cn } from "@/lib/utils";
 import type { Conversation, Profile } from "@/types/database";
 
@@ -98,6 +99,7 @@ export default function ChatPage() {
   const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -115,10 +117,11 @@ export default function ChatPage() {
   useEffect(() => {
     if (!showNewChatModal) return;
     (async () => {
-      const { data } = await supabase.from("profiles").select("*").order("username");
-      setAllProfiles((data ?? []).filter((p) => p.id !== currentUser?.id));
+      const res = await fetch("/api/profiles/list", { credentials: "include" });
+      const data = await res.json().catch(() => []);
+      setAllProfiles(Array.isArray(data) ? data : []);
     })();
-  }, [showNewChatModal, currentUser?.id, supabase]);
+  }, [showNewChatModal]);
 
   useEffect(() => {
     (async () => {
@@ -181,27 +184,32 @@ export default function ChatPage() {
     setCreating(false);
   }
 
-  async function createGroup() {
+  async function createGroup(memberIds: string[] = groupMemberIds) {
     if (!currentUser || !groupName.trim()) return;
     setCreatingGroup(true);
-    const { data: newConv, error: createErr } = await supabase
-      .from("conversations")
-      .insert({ type: "group", name: groupName.trim() })
-      .select("id")
-      .single();
-    if (createErr || !newConv) {
-      setCreatingGroup(false);
-      return;
+    setGroupError(null);
+    try {
+      const res = await fetch("/api/conversations/group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: groupName.trim(), memberIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGroupError((data.error as string) || "Не удалось создать группу");
+        setCreatingGroup(false);
+        return;
+      }
+      const convId = data.id as string;
+      await refreshConversations();
+      setSelectedId(convId);
+      setShowNewChatModal(false);
+      setGroupName("");
+      setGroupMemberIds([]);
+    } catch {
+      setGroupError("Ошибка соединения");
     }
-    await supabase.from("participants").insert({ conversation_id: newConv.id, user_id: currentUser.id });
-    if (groupMemberIds.length > 0) {
-      await supabase.from("participants").insert(groupMemberIds.map((user_id) => ({ conversation_id: newConv.id, user_id })));
-    }
-    await refreshConversations();
-    setSelectedId(newConv.id);
-    setShowNewChatModal(false);
-    setGroupName("");
-    setGroupMemberIds([]);
     setCreatingGroup(false);
   }
 
@@ -221,6 +229,7 @@ export default function ChatPage() {
   const fallback = selected?.type === "group" ? (selected.name ?? "Г") : ((selected?.otherParticipant?.full_name || selected?.otherParticipant?.username) ?? "?");
   const showProfilePanel = searchParams.get("panel") === "profile";
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGroupSettingsPanel, setShowGroupSettingsPanel] = useState(false);
 
   useEffect(() => {
     if (showProfilePanel) setSidebarOpen(false);
@@ -323,6 +332,8 @@ export default function ChatPage() {
                 setSelectedId(null);
                 setSidebarOpen(true);
               }}
+              isGroup={selected?.type === "group"}
+              onOpenGroupSettings={selected?.type === "group" ? () => setShowGroupSettingsPanel(true) : undefined}
             />
             <MessageList conversationId={selectedId} currentUserId={currentUser?.id ?? ""} />
             <Composer conversationId={selectedId} />
@@ -336,6 +347,7 @@ export default function ChatPage() {
         onClose={() => {
           setShowNewChatModal(false);
           setNewChatError(null);
+          setGroupError(null);
           setNewChatUsername("");
           setGroupName("");
           setGroupMemberIds([]);
@@ -353,9 +365,19 @@ export default function ChatPage() {
         onToggleGroupMember={toggleGroupMember}
         onCreateGroup={createGroup}
         groupLoading={creatingGroup}
+        groupError={groupError}
       />
       {showProfilePanel && (
         <ProfilePanel onClose={closeProfilePanel} />
+      )}
+      {showGroupSettingsPanel && selected?.type === "group" && selectedId && (
+        <GroupSettingsPanel
+          conversationId={selectedId}
+          name={selected.name ?? "Группа"}
+          avatarUrl={selected.avatar_url}
+          onClose={() => setShowGroupSettingsPanel(false)}
+          onUpdated={() => refreshConversations()}
+        />
       )}
     </div>
   );

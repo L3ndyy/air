@@ -98,6 +98,7 @@ export function Composer({ conversationId }: ComposerProps) {
     });
     setContent("");
     setSending(false);
+    const notifyBody = text?.slice(0, 100) || "Вложение";
     fetch("/api/push/notify", {
       method: "POST",
       credentials: "include",
@@ -105,9 +106,20 @@ export function Composer({ conversationId }: ComposerProps) {
       body: JSON.stringify({
         conversationId,
         title: "Air",
-        body: text?.slice(0, 100) || "Вложение",
+        body: notifyBody,
       }),
-    }).catch(() => {});
+    })
+      .then((res) => {
+        if (res.status === 405) {
+          const params = new URLSearchParams({
+            conversationId,
+            title: "Air",
+            body: notifyBody,
+          });
+          return fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, [content, conversationId, pendingFile, sending, supabase]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,6 +145,17 @@ export function Composer({ conversationId }: ComposerProps) {
   }, [content]);
 
   const canSend = content.trim() || pendingFile;
+
+  const adjustTextareaHeight = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 40), 128)}px`;
+  }, []);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [content, adjustTextareaHeight]);
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-glass)] p-3 backdrop-blur-xl">
@@ -201,7 +224,8 @@ export function Composer({ conversationId }: ComposerProps) {
               send();
             }
           }}
-          className="min-h-[40px] max-h-32 w-full resize-none rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+          className="min-h-[40px] max-h-[128px] w-full resize-none overflow-y-auto rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+          style={{ height: "40px" }}
         />
         </div>
         <Button
