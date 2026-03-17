@@ -132,40 +132,53 @@ export function ChatSidebar({
               transition={{ delay: index * 0.03, duration: 0.25 }}
               className="mb-0.5"
             >
-              <button
-                type="button"
-                onClick={() => onSelect(c.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
-                  isSelected
-                    ? "bg-gradient-to-r from-indigo-50/90 to-transparent dark:from-indigo-500/20"
-                    : "hover:bg-white/50 dark:hover:bg-white/10"
-                } ${isSelected ? "border-l-4 border-l-[var(--air-accent)] pl-[calc(0.75rem-4px)]" : ""}`}
-              >
-                <Avatar
-                  src={avatarUrl}
-                  fallback={label}
-                  size="sm"
-                  className="h-10 w-10 shrink-0 text-sm"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold [color:var(--air-text)]">{label}</p>
-                  {c.lastMessage && (
-                    <p className="truncate text-xs text-air-muted">{c.lastMessage.content}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {(c.unreadCount ?? 0) > 0 && (
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--air-accent)] px-1.5 text-xs font-medium text-white">
-                      {c.unreadCount! > 99 ? "99+" : c.unreadCount}
-                    </span>
-                  )}
-                  {c.lastMessage && (
-                    <span className="text-[11px] text-air-muted">
-                      {formatTime(c.lastMessage.created_at)}
-                    </span>
-                  )}
-                </div>
-              </button>
+              <div className="flex w-full items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSelect(c.id)}
+                  className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
+                    isSelected
+                      ? "bg-gradient-to-r from-indigo-50/90 to-transparent dark:from-indigo-500/20"
+                      : "hover:bg-white/50 dark:hover:bg-white/10"
+                  } ${isSelected ? "border-l-4 border-l-[var(--air-accent)] pl-[calc(0.75rem-4px)]" : ""}`}
+                >
+                  <Avatar
+                    src={avatarUrl}
+                    fallback={label}
+                    size="sm"
+                    className="h-10 w-10 shrink-0 text-sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold [color:var(--air-text)]">{label}</p>
+                    {c.lastMessage && (
+                      <p className="truncate text-xs text-air-muted">{c.lastMessage.content}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {(c.unreadCount ?? 0) > 0 && (
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--air-accent)] px-1.5 text-xs font-medium text-white">
+                        {c.unreadCount! > 99 ? "99+" : c.unreadCount}
+                      </span>
+                    )}
+                    {c.lastMessage && (
+                      <span className="text-[11px] text-air-muted">
+                        {formatTime(c.lastMessage.created_at)}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                {c.type === "direct" && c.otherParticipant?.username && (
+                  <Link
+                    href={`/user/${encodeURIComponent(c.otherParticipant.username)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
+                    title="Открыть профиль"
+                    aria-label="Профиль"
+                  >
+                    <User className="h-4 w-4" />
+                  </Link>
+                )}
+              </div>
             </motion.li>
           );
         })}

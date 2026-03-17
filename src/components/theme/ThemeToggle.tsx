@@ -9,7 +9,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 hover:bg-white/50 [color:var(--air-text-muted)] hover:[color:var(--air-text)]"
+      className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 hover:bg-[var(--air-glass)] [color:var(--air-text-muted)] hover:[color:var(--air-text)]"
       aria-label={theme === "light" ? "Включить тёмную тему" : "Включить светлую тему"}
     >
       {theme === "light" ? (

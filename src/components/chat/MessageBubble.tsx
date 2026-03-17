@@ -62,6 +62,7 @@ export function MessageBubble({
                 rel="noopener noreferrer"
                 className="block overflow-hidden rounded-lg"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={attachmentUrl}
                   alt="Вложение"

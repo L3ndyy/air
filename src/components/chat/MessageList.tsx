@@ -78,7 +78,7 @@ export function MessageList({ conversationId, currentUserId }: MessageListProps)
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, supabase]);
+  }, [conversationId, currentUserId, supabase]);
 
   async function handleDeleteMessage(id: string) {
     const { error } = await supabase.from("messages").delete().eq("id", id);

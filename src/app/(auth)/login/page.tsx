@@ -50,13 +50,13 @@ function LoginForm() {
   }
 
   return (
-    <Card className="overflow-hidden border-gray-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+    <Card className="overflow-hidden">
       <CardHeader className="text-center pb-1 pt-8">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white shadow-lg shadow-blue-200/40">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white shadow-lg shadow-blue-200/40 dark:shadow-purple-500/20">
           <MessageCircle className="h-7 w-7" />
         </div>
         <CardTitle className="text-2xl font-semibold tracking-tight">Air</CardTitle>
-        <p className="mt-1 text-sm text-gray-500">Войдите в аккаунт</p>
+        <p className="mt-1 text-sm [color:var(--air-text-muted)]">Войдите в аккаунт</p>
       </CardHeader>
       <CardContent className="px-6 pb-8 pt-4">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,22 +81,22 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 [color:var(--air-text-muted)] hover:bg-[var(--air-glass)] hover:[color:var(--air-text)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]"
               aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-lg bg-red-500/15 dark:bg-red-500/20 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
           <Button type="submit" className="w-full" isLoading={loading}>
             Войти
           </Button>
         </form>
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm [color:var(--air-text-muted)]">
           Нет аккаунта?{" "}
-          <Link href="/register" className="font-medium text-blue-500 hover:text-blue-600">
+          <Link href="/register" className="font-medium text-[var(--air-accent)] hover:opacity-90">
             Регистрация
           </Link>
         </p>
@@ -109,17 +109,17 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <Card className="overflow-hidden border-gray-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+        <Card className="overflow-hidden">
           <CardHeader className="text-center pb-1 pt-8">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white shadow-lg shadow-blue-200/40">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 text-white shadow-lg">
               <MessageCircle className="h-7 w-7" />
             </div>
             <CardTitle className="text-2xl font-semibold tracking-tight">Air</CardTitle>
-            <p className="mt-1 text-sm text-gray-500">Войдите в аккаунт</p>
+            <p className="mt-1 text-sm [color:var(--air-text-muted)]">Войдите в аккаунт</p>
           </CardHeader>
           <CardContent className="px-6 pb-8 pt-4">
             <div className="flex justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
             </div>
           </CardContent>
         </Card>

@@ -104,6 +104,14 @@ export default function ChatPage() {
     setShowNewChatModal((prev) => prev || searchParams.get("new") === "1");
   }, [searchParams]);
 
+  const conversationIdFromUrl = searchParams.get("conversation");
+  useEffect(() => {
+    if (conversationIdFromUrl && conversations.some((c) => c.id === conversationIdFromUrl)) {
+      setSelectedId(conversationIdFromUrl);
+      setSidebarOpen(false);
+    }
+  }, [conversationIdFromUrl, conversations]);
+
   useEffect(() => {
     if (!showNewChatModal) return;
     (async () => {
@@ -261,7 +269,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser?.id, selectedId, supabase]);
+  }, [currentUser?.id, selectedId, supabase, refreshConversations]);
 
   return (
     <div className="relative flex h-full">
@@ -309,6 +317,7 @@ export default function ChatPage() {
               title={title}
               avatarUrl={avatarUrl}
               fallback={fallback}
+              profileUsername={selected?.type === "direct" ? selected.otherParticipant?.username : undefined}
               subtitle={<TypingIndicator conversationId={selectedId} currentUserId={currentUser?.id} />}
               onBack={() => {
                 setSelectedId(null);

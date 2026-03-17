@@ -112,8 +112,8 @@ export default function RegisterPage() {
             <MessageCircle className="h-7 w-7" />
           </div>
           <CardTitle className="text-xl">Проверьте почту</CardTitle>
-          <p className="mt-3 text-sm leading-relaxed text-gray-600">
-            Мы отправили ссылку для подтверждения на <strong>{email}</strong>. Перейдите по ссылке из письма, затем войдите в аккаунт.
+          <p className="mt-3 text-sm leading-relaxed [color:var(--air-text-muted)]">
+            Мы отправили ссылку для подтверждения на <strong className="[color:var(--air-text)]">{email}</strong>. Перейдите по ссылке из письма, затем войдите в аккаунт.
           </p>
         </CardHeader>
         <CardContent className="pb-8 pt-2">
@@ -132,7 +132,7 @@ export default function RegisterPage() {
           <MessageCircle className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl">Air</CardTitle>
-        <p className="text-sm text-gray-500">Создайте аккаунт</p>
+        <p className="text-sm [color:var(--air-text-muted)]">Создайте аккаунт</p>
       </CardHeader>
       <CardContent className="pt-2 pb-6">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -182,14 +182,14 @@ export default function RegisterPage() {
             required
             autoComplete="new-password"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
           <Button type="submit" className="w-full" isLoading={loading}>
             Зарегистрироваться
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm [color:var(--air-text-muted)]">
           Уже есть аккаунт?{" "}
-          <Link href="/login" className="font-medium text-blue-500 hover:text-blue-600">
+          <Link href="/login" className="font-medium text-[var(--air-accent)] hover:opacity-90">
             Войти
           </Link>
         </p>

@@ -29,9 +29,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       primary:
         "bg-gradient-to-r from-blue-400 to-purple-500 text-white shadow-air hover:from-blue-500 hover:to-purple-600",
       secondary:
-        "bg-white/80 backdrop-blur-xl border border-gray-200/60 text-gray-800 shadow-air hover:bg-white hover:border-gray-300/80",
+        "bg-[var(--air-surface)] backdrop-blur-xl border border-[var(--air-glass-border)] [color:var(--air-text)] shadow-air hover:opacity-90",
       ghost:
-        "text-gray-700 hover:bg-gray-100/80 hover:border-gray-200/60 border border-transparent",
+        "[color:var(--air-text)] hover:bg-[var(--air-glass)] border border-transparent",
     };
     const sizes = {
       sm: "h-8 px-3 text-sm",
