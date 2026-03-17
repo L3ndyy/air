@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, Settings } from "lucide-react";
 import { Avatar } from "@/components/ui";
 
@@ -8,15 +7,23 @@ interface ChatHeaderProps {
   title: string;
   avatarUrl?: string | null;
   fallback?: string;
-  profileUsername?: string | null;
   subtitle?: React.ReactNode;
   onBack?: () => void;
   isGroup?: boolean;
   onOpenGroupSettings?: () => void;
+  onOpenProfile?: () => void;
 }
 
-export function ChatHeader({ title, avatarUrl, fallback, profileUsername, subtitle, onBack, isGroup, onOpenGroupSettings }: ChatHeaderProps) {
-  const profileLink = profileUsername ? `/user/${encodeURIComponent(profileUsername)}` : null;
+export function ChatHeader({
+  title,
+  avatarUrl,
+  fallback,
+  subtitle,
+  onBack,
+  isGroup,
+  onOpenGroupSettings,
+  onOpenProfile,
+}: ChatHeaderProps) {
   const headerContent = (
     <>
       <Avatar src={avatarUrl} fallback={fallback || title} size="md" />
@@ -41,16 +48,18 @@ export function ChatHeader({ title, avatarUrl, fallback, profileUsername, subtit
           <ArrowLeft className="h-5 w-5" />
         </button>
       )}
-      {profileLink ? (
-        <Link
-          href={profileLink}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 pr-2 transition hover:bg-[var(--air-glass)]"
-        >
-          {headerContent}
-        </Link>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-3">{headerContent}</div>
-      )}
+      <button
+        type="button"
+        onClick={onOpenProfile}
+        disabled={!onOpenProfile}
+        className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 pr-2 ${
+          onOpenProfile
+            ? "transition hover:bg-[var(--air-glass)]"
+            : "cursor-default"
+        }`}
+      >
+        {headerContent}
+      </button>
       {isGroup && onOpenGroupSettings && (
         <button
           type="button"

@@ -12,6 +12,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { Composer } from "@/components/chat/Composer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
+import { UserProfilePanel } from "@/components/profile/UserProfilePanel";
 import { GroupSettingsPanel } from "@/components/group/GroupSettingsPanel";
 import { cn } from "@/lib/utils";
 import type { Conversation, Profile } from "@/types/database";
@@ -189,24 +190,14 @@ export default function ChatPage() {
     setCreatingGroup(true);
     setGroupError(null);
     try {
-      const payload = { name: groupName.trim(), memberIds };
-      let res = await fetch("/api/conversations/group", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
+      const name = groupName.trim();
+      const params = new URLSearchParams({
+        name,
+        ...(memberIds.length ? { memberIds: memberIds.join(",") } : {}),
       });
-      if (res.status === 405) {
-        const params = new URLSearchParams({
-          name: payload.name,
-          ...(payload.memberIds && payload.memberIds.length
-            ? { memberIds: payload.memberIds.join(",") }
-            : {}),
-        });
-        res = await fetch(`/api/conversations/group?${params.toString()}`, {
-          credentials: "include",
-        });
-      }
+      const res = await fetch(`/api/conversations/group?${params.toString()}`, {
+        credentials: "include",
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setGroupError((data.error as string) || "Не удалось создать группу");
@@ -242,6 +233,7 @@ export default function ChatPage() {
   const showProfilePanel = searchParams.get("panel") === "profile";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGroupSettingsPanel, setShowGroupSettingsPanel] = useState(false);
+  const [otherProfileUsername, setOtherProfileUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (showProfilePanel) setSidebarOpen(false);
@@ -338,7 +330,6 @@ export default function ChatPage() {
               title={title}
               avatarUrl={avatarUrl}
               fallback={fallback}
-              profileUsername={selected?.type === "direct" ? selected.otherParticipant?.username : undefined}
               subtitle={<TypingIndicator conversationId={selectedId} currentUserId={currentUser?.id} />}
               onBack={() => {
                 setSelectedId(null);
@@ -346,6 +337,11 @@ export default function ChatPage() {
               }}
               isGroup={selected?.type === "group"}
               onOpenGroupSettings={selected?.type === "group" ? () => setShowGroupSettingsPanel(true) : undefined}
+              onOpenProfile={
+                selected?.type === "direct" && selected.otherParticipant?.username
+                  ? () => setOtherProfileUsername(selected.otherParticipant!.username)
+                  : undefined
+              }
             />
             <MessageList conversationId={selectedId} currentUserId={currentUser?.id ?? ""} />
             <Composer conversationId={selectedId} />
@@ -381,6 +377,12 @@ export default function ChatPage() {
       />
       {showProfilePanel && (
         <ProfilePanel onClose={closeProfilePanel} />
+      )}
+      {otherProfileUsername && (
+        <UserProfilePanel
+          username={otherProfileUsername}
+          onClose={() => setOtherProfileUsername(null)}
+        />
       )}
       {showGroupSettingsPanel && selected?.type === "group" && selectedId && (
         <GroupSettingsPanel
