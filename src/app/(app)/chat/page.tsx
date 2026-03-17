@@ -18,6 +18,7 @@ import type { Conversation, Profile } from "@/types/database";
 interface ConversationWithDetails extends Conversation {
   otherParticipant?: Profile | null;
   lastMessage?: { content: string; created_at: string } | null;
+  unreadCount?: number;
 }
 
 async function loadConversations(
@@ -37,6 +38,17 @@ async function loadConversations(
     .in("id", convIds)
     .order("created_at", { ascending: false });
   if (!convs) return [];
+
+  const { data: unreadRows } = await supabase
+    .from("messages")
+    .select("conversation_id")
+    .in("conversation_id", convIds)
+    .neq("sender_id", userId)
+    .eq("is_read", false);
+  const unreadByConv: Record<string, number> = {};
+  (unreadRows ?? []).forEach((r) => {
+    unreadByConv[r.conversation_id] = (unreadByConv[r.conversation_id] ?? 0) + 1;
+  });
 
   return Promise.all(
     convs.map(async (c) => {
@@ -61,7 +73,12 @@ async function loadConversations(
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
-      return { ...c, otherParticipant, lastMessage: lastMsg ?? null };
+      return {
+        ...c,
+        otherParticipant,
+        lastMessage: lastMsg ?? null,
+        unreadCount: unreadByConv[c.id] ?? 0,
+      };
     })
   );
 }
@@ -208,10 +225,51 @@ export default function ChatPage() {
   function handleSelectChat(id: string) {
     setSelectedId(id);
     setSidebarOpen(false);
+    setTimeout(() => refreshConversations(), 500);
   }
+
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase
+      .channel("messages:all")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const msg = payload.new as { conversation_id: string; sender_id: string };
+          refreshConversations();
+          if (msg.sender_id !== currentUser.id && msg.conversation_id !== selectedId) {
+            setToast("Новое сообщение");
+            try {
+              const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = 800;
+              gain.gain.value = 0.1;
+              osc.start(ctx.currentTime);
+              osc.stop(ctx.currentTime + 0.1);
+            } catch {}
+            setTimeout(() => setToast(null), 3000);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, selectedId, supabase]);
 
   return (
     <div className="relative flex h-full">
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-[var(--air-accent)] px-4 py-2 text-sm font-medium text-white shadow-lg">
+          {toast}
+        </div>
+      )}
       {/* Mobile overlay when sidebar is open */}
       <div
         className={cn(

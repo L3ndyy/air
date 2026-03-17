@@ -16,6 +16,7 @@ export interface ConversationItem {
   avatar_url: string | null;
   otherParticipant?: Profile | null;
   lastMessage?: { content: string; created_at: string } | null;
+  unreadCount?: number;
 }
 
 function formatTime(iso: string): string {
@@ -152,11 +153,18 @@ export function ChatSidebar({
                     <p className="truncate text-xs text-air-muted">{c.lastMessage.content}</p>
                   )}
                 </div>
-                {c.lastMessage && (
-                  <span className="shrink-0 text-[11px] text-air-muted">
-                    {formatTime(c.lastMessage.created_at)}
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {(c.unreadCount ?? 0) > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--air-accent)] px-1.5 text-xs font-medium text-white">
+                      {c.unreadCount! > 99 ? "99+" : c.unreadCount}
+                    </span>
+                  )}
+                  {c.lastMessage && (
+                    <span className="text-[11px] text-air-muted">
+                      {formatTime(c.lastMessage.created_at)}
+                    </span>
+                  )}
+                </div>
               </button>
             </motion.li>
           );

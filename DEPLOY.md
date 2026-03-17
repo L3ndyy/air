@@ -21,6 +21,9 @@
    - Если при сохранении профиля появляется «infinite recursion» для participants — выполните `supabase/migrations/20240316000004_participants_rls_no_recursion.sql`.
    - Чтобы при регистрации сразу сохранялся выбранный username и работал поиск по username — выполните `supabase/migrations/20240316000005_register_username_from_metadata.sql`.
    - Для отправки файлов в чатах — выполните `supabase/migrations/20240316000006_chat_attachments.sql`.
+   - Для создания групп — выполните `supabase/migrations/20240316000009_participants_insert_self.sql`.
+   - Для удаления сообщений — выполните `supabase/migrations/20240316000010_messages_delete_policy.sql`.
+   - Для push-уведомлений — выполните `supabase/migrations/20240316000011_push_subscriptions.sql`.
 3. В **Database → Replication** включите Realtime для таблицы `messages`.
 4. В **Authentication → URL Configuration** добавьте в **Redirect URLs** ваш production URL (например `https://your-app.onreza.ru`).
 

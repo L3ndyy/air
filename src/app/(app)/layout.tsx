@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMaintenance, isAdminEmail } from "@/lib/admin";
 import MaintenancePage from "@/components/MaintenancePage";
+import { PushNotificationsSetup } from "@/components/PushNotificationsSetup";
 
 export default async function AppLayout({
   children,
@@ -21,6 +22,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-air-gradient">
+      <PushNotificationsSetup />
       <main className="flex min-w-0 flex-1 flex-col">{children}</main>
     </div>
   );
