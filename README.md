@@ -34,7 +34,7 @@ npm run dev
 ```bash
 git add -A
 git status
-git commit -m "update 0.7.2"
+git commit -m "update 0.7.3"
 git push origin main
 ```
 

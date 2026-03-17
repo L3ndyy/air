@@ -189,12 +189,24 @@ export default function ChatPage() {
     setCreatingGroup(true);
     setGroupError(null);
     try {
-      const res = await fetch("/api/conversations/group", {
+      const payload = { name: groupName.trim(), memberIds };
+      let res = await fetch("/api/conversations/group", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: groupName.trim(), memberIds }),
+        body: JSON.stringify(payload),
       });
+      if (res.status === 405) {
+        const params = new URLSearchParams({
+          name: payload.name,
+          ...(payload.memberIds && payload.memberIds.length
+            ? { memberIds: payload.memberIds.join(",") }
+            : {}),
+        });
+        res = await fetch(`/api/conversations/group?${params.toString()}`, {
+          credentials: "include",
+        });
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setGroupError((data.error as string) || "Не удалось создать группу");

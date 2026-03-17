@@ -9,27 +9,18 @@ function getAdminClient() {
   return createAdminClient();
 }
 
-/**
- * POST /api/conversations/group
- * Body: { name: string; memberIds?: string[] }
- * Creates a group conversation and adds current user + optional members. Uses admin to avoid RLS 403.
- */
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Необходимо войти в аккаунт" }, { status: 401 });
-    }
+async function handleCreateGroup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  name: string,
+  memberIds: string[] | undefined
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Необходимо войти в аккаунт" }, { status: 401 });
+  }
 
-    let body: { name?: string; memberIds?: string[] } = {};
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Укажите название группы" }, { status: 400 });
-    }
-
-    const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) {
       return NextResponse.json({ error: "Укажите название группы" }, { status: 400 });
     }
@@ -59,8 +50,8 @@ export async function POST(request: NextRequest) {
       { conversation_id: newConv.id, user_id: user.id },
     ];
 
-    const memberIds = Array.isArray(body.memberIds) ? body.memberIds : [];
-    const uniqueIds = Array.from(new Set(memberIds)).filter((id) => id && id !== user.id);
+    const safeMemberIds = Array.isArray(memberIds) ? memberIds : [];
+    const uniqueIds = Array.from(new Set(safeMemberIds)).filter((id) => id && id !== user.id);
     for (const uid of uniqueIds) {
       participantRows.push({ conversation_id: newConv.id, user_id: uid });
     }
@@ -74,6 +65,46 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ id: newConv.id });
+}
+
+/**
+ * POST /api/conversations/group
+ * Body: { name: string; memberIds?: string[] }
+ * Creates a group conversation and adds current user + optional members. Uses admin to avoid RLS 403.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    let body: { name?: string; memberIds?: string[] } = {};
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Укажите название группы" }, { status: 400 });
+    }
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    return await handleCreateGroup(supabase, name, body.memberIds);
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/conversations/group?name=xxx&memberIds=id1,id2
+ * Fallback для хостингов, где POST даёт 405.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const name = request.nextUrl.searchParams.get("name")?.trim() ?? "";
+    const memberIdsParam = request.nextUrl.searchParams.get("memberIds") ?? "";
+    const memberIds =
+      memberIdsParam && memberIdsParam.length > 0
+        ? memberIdsParam.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    return await handleCreateGroup(supabase, name, memberIds);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Server error" },

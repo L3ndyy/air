@@ -99,27 +99,13 @@ export function Composer({ conversationId }: ComposerProps) {
     setContent("");
     setSending(false);
     const notifyBody = text?.slice(0, 100) || "Вложение";
-    fetch("/api/push/notify", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId,
-        title: "Air",
-        body: notifyBody,
-      }),
-    })
-      .then((res) => {
-        if (res.status === 405) {
-          const params = new URLSearchParams({
-            conversationId,
-            title: "Air",
-            body: notifyBody,
-          });
-          return fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
-        }
-      })
-      .catch(() => {});
+    // Для хостингов вроде Onreza, где POST /api может давать 405, используем GET
+    const params = new URLSearchParams({
+      conversationId,
+      title: "Air",
+      body: notifyBody,
+    });
+    fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
   }, [content, conversationId, pendingFile, sending, supabase]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

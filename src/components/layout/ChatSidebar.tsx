@@ -167,17 +167,7 @@ export function ChatSidebar({
                     )}
                   </div>
                 </button>
-                {c.type === "direct" && c.otherParticipant?.username && (
-                  <Link
-                    href={`/user/${encodeURIComponent(c.otherParticipant.username)}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
-                    title="Открыть профиль"
-                    aria-label="Профиль"
-                  >
-                    <User className="h-4 w-4" />
-                  </Link>
-                )}
+                {/* Специальной кнопки профиля в списке чатов больше нет — заход в профиль через аватар в самом чате */}
               </div>
             </motion.li>
           );
