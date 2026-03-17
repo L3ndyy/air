@@ -18,6 +18,15 @@ npm run dev
 
 Откройте [http://localhost:3000](http://localhost:3000).
 
+## Важно: переменные при деплое
+
+Если при входе или регистрации в браузере появляется ошибка **400 "No API key found in request"** — на платформе деплоя (ONREZA, Vercel и т.п.) не заданы переменные окружения. В настройках проекта обязательно добавьте:
+
+- **NEXT_PUBLIC_SUPABASE_URL** — URL проекта Supabase (например `https://xxxx.supabase.co`)
+- **NEXT_PUBLIC_SUPABASE_ANON_KEY** — публичный anon key (Supabase → Settings → API)
+
+Эти переменные подставляются в код **во время сборки**. После добавления сохраните настройки и заново запустите сборку/деплой.
+
 ## Деплой на GitHub
 
 Быстро отправить изменения в репозиторий:
@@ -25,7 +34,7 @@ npm run dev
 ```bash
 git add -A
 git status
-git commit -m "update 0.6.14"
+git commit -m "update 0.6.15"
 git push origin main
 ```
 
