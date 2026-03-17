@@ -61,16 +61,29 @@ export function GroupSettingsPanel({
     return () => { cancelled = true; };
   }, [conversationId]);
 
+  async function updateConversation(payload: { name?: string; avatar_url?: string }) {
+    let res = await fetch(`/api/conversations/${conversationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 405) {
+      const params = new URLSearchParams();
+      if (payload.name != null) params.set("name", payload.name);
+      if (payload.avatar_url != null) params.set("avatar_url", payload.avatar_url);
+      res = await fetch(`/api/conversations/${conversationId}?${params.toString()}`, {
+        credentials: "include",
+      });
+    }
+    return res;
+  }
+
   async function handleSaveName() {
     if (name.trim() === initialName) return;
     setSavingName(true);
     try {
-      const res = await fetch(`/api/conversations/${conversationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: name.trim() }),
-      });
+      const res = await updateConversation({ name: name.trim() });
       if (res.ok) {
         onUpdated();
       }
@@ -81,12 +94,7 @@ export function GroupSettingsPanel({
 
   async function handleAvatarEmoji(emoji: string) {
     const value = EMOJI_PREFIX + emoji;
-    const res = await fetch(`/api/conversations/${conversationId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ avatar_url: value }),
-    });
+    const res = await updateConversation({ avatar_url: value });
     if (res.ok) {
       setAvatarUrl(value);
       setShowEmojiPicker(false);
