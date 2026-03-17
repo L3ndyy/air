@@ -5,12 +5,39 @@ import { isAdminEmail } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !isAdminEmail(user.email ?? undefined)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get("action");
+    const userId = searchParams.get("userId");
+
+    if (action === "delete" && userId) {
+      const admin = createAdminClient();
+      const { error } = await admin.auth.admin.deleteUser(userId);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "set_password" && userId) {
+      const newPassword = Array.from(crypto.getRandomValues(new Uint8Array(12)))
+        .map((b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 32])
+        .join("");
+      const admin = createAdminClient();
+      const { error } = await admin.auth.admin.updateUserById(userId, {
+        password: newPassword,
+      });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, password: newPassword });
     }
 
     const admin = createAdminClient();

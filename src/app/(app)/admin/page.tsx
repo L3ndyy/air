@@ -102,12 +102,8 @@ export default function AdminPage() {
     if (!confirm(`Удалить пользователя ${u.email} (${u.username ?? u.id})? Это действие нельзя отменить.`)) return;
     setDeletingId(u.id);
     try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete", userId: u.id }),
-      });
+      const url = `/api/admin/users?action=delete&userId=${encodeURIComponent(u.id)}`;
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data.error ?? "Ошибка удаления");
@@ -122,12 +118,8 @@ export default function AdminPage() {
   async function handleSetPassword(u: AdminUser) {
     setPasswordId(u.id);
     try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_password", userId: u.id }),
-      });
+      const url = `/api/admin/users?action=set_password&userId=${encodeURIComponent(u.id)}`;
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data.error ?? "Ошибка");
