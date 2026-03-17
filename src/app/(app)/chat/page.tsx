@@ -74,7 +74,7 @@ async function loadConversations(
         .eq("conversation_id", c.id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return {
         ...c,
         otherParticipant,
