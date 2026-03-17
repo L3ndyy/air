@@ -51,7 +51,7 @@ export function AvatarPicker({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={disabled}
-          className="rounded-full ring-4 ring-white shadow-xl shadow-gray-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400/50 disabled:opacity-50"
+          className="rounded-full ring-4 ring-[var(--air-surface)] shadow-xl shadow-black/10 focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)] disabled:opacity-50"
         >
           <Avatar src={currentUrl} fallback={fallback} size="xl" />
         </button>
@@ -72,21 +72,21 @@ export function AvatarPicker({
           <button
             type="button"
             onClick={() => setMode("emoji")}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200/80 bg-white py-2.5 text-sm text-gray-600 transition hover:border-blue-200 hover:bg-blue-50/50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] py-2.5 text-sm [color:var(--air-text-muted)] transition hover:border-[var(--air-accent)]/40 hover:bg-[var(--air-glow)]"
           >
             <Smile className="h-4 w-4" />
             Выбрать эмодзи
           </button>
         ) : (
-          <div className="rounded-2xl border border-gray-200/60 bg-white/90 p-3 shadow-air">
-            <p className="mb-2 text-center text-xs font-medium text-gray-500">Выберите эмодзи</p>
+          <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] p-3 shadow-lg">
+            <p className="mb-2 text-center text-xs font-medium [color:var(--air-text-muted)]">Выберите эмодзи</p>
             <div className="grid grid-cols-8 gap-1">
               {EMOJI_LIST.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
                   onClick={() => handleEmojiClick(emoji)}
-                  className="rounded-lg p-1.5 text-xl transition hover:bg-gray-100"
+                  className="rounded-lg p-1.5 text-xl transition hover:bg-[var(--air-glass)]"
                 >
                   {emoji}
                 </button>
@@ -95,7 +95,7 @@ export function AvatarPicker({
             <button
               type="button"
               onClick={() => setMode("view")}
-              className="mt-2 w-full rounded-lg py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+              className="mt-2 w-full rounded-lg py-1.5 text-sm [color:var(--air-text-muted)] hover:bg-[var(--air-glass)]"
             >
               Отмена
             </button>

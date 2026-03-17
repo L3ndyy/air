@@ -197,6 +197,10 @@ export default function ChatPage() {
   const showProfilePanel = searchParams.get("panel") === "profile";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    if (showProfilePanel) setSidebarOpen(false);
+  }, [showProfilePanel]);
+
   function closeProfilePanel() {
     router.replace("/chat");
   }

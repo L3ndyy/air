@@ -74,13 +74,13 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   return (
     <>
       <div className="absolute inset-0 z-10 bg-black/20 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
-      <div className="absolute right-0 top-0 z-20 flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200/60 px-4 py-3">
-          <span className="text-sm font-medium text-gray-500">Профиль</span>
+      <div className="absolute right-0 top-0 z-20 flex h-full w-full max-w-md flex-col bg-[var(--air-surface)] shadow-2xl [color:var(--air-text)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--air-glass-border)] px-4 py-3">
+          <span className="text-sm font-medium [color:var(--air-text-muted)]">Профиль</span>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+            className="flex h-9 w-9 items-center justify-center rounded-full [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
             aria-label="Закрыть"
           >
             <X className="h-5 w-5" />
@@ -89,24 +89,24 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
         <div className="flex-1 overflow-y-auto">
           {loading && (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
-              <p className="mt-3 text-sm text-gray-500">Загрузка...</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
+              <p className="mt-3 text-sm [color:var(--air-text-muted)]">Загрузка...</p>
             </div>
           )}
           {error && !profile && (
-            <div className="p-6 text-center text-gray-600">
+            <div className="p-6 text-center [color:var(--air-text-muted)]">
               <p>{error}</p>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="mt-3 text-sm text-blue-500 hover:underline"
+                className="mt-3 text-sm text-[var(--air-accent)] hover:underline"
               >
                 Повторить
               </button>
             </div>
           )}
           {profile && !loading && (
-            <div className="bg-gradient-to-b from-gray-50/50 to-white p-6">
+            <div className="bg-[var(--air-glass)]/50 p-6">
               <div className="flex flex-col items-center text-center">
                 <AvatarPicker
                   currentUrl={profile.avatar_url}
@@ -114,17 +114,17 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   onUpload={handleAvatarUpload}
                   onEmojiSelect={handleEmojiSelect}
                 />
-                <h1 className="mt-4 text-xl font-semibold text-gray-800">Профиль</h1>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
+                <h1 className="mt-4 text-xl font-semibold [color:var(--air-text)]">Профиль</h1>
+                <p className="mt-1 flex items-center gap-1.5 text-sm [color:var(--air-text-muted)]">
                   <span
-                    className={`inline-block h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-gray-300"}`}
+                    className={`inline-block h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-[var(--air-border)]"}`}
                     title={isOnline ? "в сети" : "не в сети"}
                   />
                   {isOnline ? "в сети" : "не в сети"}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-400">Настройте имя, ник и описание</p>
+                <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">Настройте имя, ник и описание</p>
               </div>
-              <div className="mt-8 border-t border-gray-100 pt-6">
+              <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
                 <ProfileForm
                   profile={profile}
                   onSaved={(updated) => updated && setProfile((prev) => (prev ? { ...prev, ...updated } : null))}

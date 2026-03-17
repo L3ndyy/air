@@ -79,9 +79,9 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-gray-600">Username</label>
-        <div className="flex items-center rounded-xl border border-gray-200/80 bg-gray-50/50 px-3 focus-within:border-blue-300 focus-within:bg-white">
-          <span className="text-gray-400">@</span>
+        <label className="mb-1.5 block text-sm font-medium [color:var(--air-text-muted)]">Username</label>
+        <div className="flex items-center rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 focus-within:border-[var(--air-accent)] focus-within:ring-2 focus-within:ring-[var(--air-glow)]">
+          <span className="[color:var(--air-text-muted)]">@</span>
           <input
             type="text"
             placeholder="например ivan_petrov"
@@ -90,14 +90,14 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               setUsername(e.target.value);
               setUsernameError(null);
             }}
-            className="min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-1 pr-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+            className="min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-1 pr-2 [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-0"
           />
         </div>
-        <p className="mt-1 text-xs text-gray-500">Латиница, цифры и _ — можно менять, если ник не занят</p>
+        <p className="mt-1 text-xs [color:var(--air-text-muted)]">Латиница, цифры и _ — можно менять, если ник не занят</p>
         {usernameError && <p className="mt-1 text-sm text-red-500">{usernameError}</p>}
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-gray-600">Имя</label>
+        <label className="mb-1.5 block text-sm font-medium [color:var(--air-text-muted)]">Имя</label>
         <Input
           placeholder="Ваше имя"
           value={fullName}
@@ -105,14 +105,14 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
         />
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-gray-600">Описание</label>
+        <label className="mb-1.5 block text-sm font-medium [color:var(--air-text-muted)]">Описание</label>
         <Input
           placeholder="Расскажите о себе"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         />
       </div>
-      {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-500">{error}</p>}
       <Button type="submit" className="w-full" isLoading={saving}>
         Сохранить
       </Button>
