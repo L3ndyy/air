@@ -27,7 +27,7 @@ export async function GET() {
       return NextResponse.json(reports ?? []);
     }
 
-    const messageIds = [...new Set(reports.map((r) => r.message_id))];
+    const messageIds = Array.from(new Set(reports.map((r) => r.message_id)));
     const { data: messages } = await admin
       .from("messages")
       .select("id, content, sender_id, conversation_id, created_at, hidden")
@@ -44,7 +44,7 @@ export async function GET() {
     const { data: profiles } = await admin
       .from("profiles")
       .select("id, username, full_name")
-      .in("id", [...userIds]);
+      .in("id", Array.from(userIds));
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
