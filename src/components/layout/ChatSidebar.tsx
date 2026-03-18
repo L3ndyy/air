@@ -81,12 +81,12 @@ export function ChatSidebar({
 
   return (
     <aside
-      className={`flex w-[320px] max-w-[350px] shrink-0 flex-col border-r border-[var(--air-glass-border)] bg-[var(--air-glass)] backdrop-blur-xl ${className}`}
+      className={`flex w-[320px] max-w-[350px] shrink-0 flex-col border-r border-[var(--air-glass-border)] bg-[var(--air-surface)] backdrop-blur-xl ${className}`}
     >
-      {/* Header: logo + search */}
+      {/* Header: logo + search — Telegram-style */}
       <div className="shrink-0 border-b border-[var(--air-glass-border)] px-4 pt-4 pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-air-accent text-white shadow-glow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--air-accent)] text-white shadow-sm">
             <MessageCircle className="h-5 w-5" />
           </div>
           <span className="font-semibold [color:var(--air-text)]">Air</span>
@@ -98,7 +98,7 @@ export function ChatSidebar({
             placeholder="Поиск"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] py-2 pl-9 pr-3 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+            className="w-full rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] py-2 pl-9 pr-3 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-[var(--air-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--air-accent)]/30 transition"
           />
         </div>
       </div>
@@ -108,7 +108,7 @@ export function ChatSidebar({
         <button
           type="button"
           onClick={onNewChatClick}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-air-accent py-2.5 text-sm font-medium text-white shadow-air-md transition hover:opacity-95 active:scale-[0.99]"
+          className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[var(--air-accent)] py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
         >
           <Plus className="h-5 w-5" />
           Новый чат
@@ -150,10 +150,10 @@ export function ChatSidebar({
                 <button
                   type="button"
                   onClick={() => onSelect(c.id)}
-                  className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
+                  className={`flex min-w-0 flex-1 items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition-colors duration-200 ${
                     isSelected
-                      ? "bg-gradient-to-r from-indigo-50/90 to-transparent dark:from-indigo-500/20"
-                      : "hover:bg-white/50 dark:hover:bg-white/10"
+                      ? "bg-[var(--air-input-bg)]"
+                      : "hover:bg-[var(--air-input-bg)]/70"
                   } ${isSelected ? "border-l-4 border-l-[var(--air-accent)] pl-[calc(0.75rem-4px)]" : ""}`}
                 >
                   <div className="relative h-10 w-10 shrink-0">
@@ -210,8 +210,8 @@ export function ChatSidebar({
         )}
         <Link
           href="/chat?panel=profile"
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 ${
-            isProfileOpen ? "bg-indigo-50/80 dark:bg-indigo-500/20 [color:var(--air-text)]" : "[color:var(--air-text-muted)] hover:bg-white/50"
+          className={`flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm transition-colors duration-200 ${
+            isProfileOpen ? "bg-[var(--air-input-bg)] [color:var(--air-text)]" : "[color:var(--air-text-muted)] hover:bg-[var(--air-input-bg)]/70"
           }`}
         >
           <Avatar

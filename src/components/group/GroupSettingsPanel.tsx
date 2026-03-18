@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Users, UserPlus, Link2, LogOut } from "lucide-react";
+import { X, Users, UserPlus, Link2, LogOut, Trash2 } from "lucide-react";
 import { Avatar, Button, Input } from "@/components/ui";
 import { EMOJI_LIST } from "@/lib/emoji";
 
@@ -24,6 +24,7 @@ interface GroupSettingsPanelProps {
   onClose: () => void;
   onUpdated: () => void;
   onLeftGroup?: () => void;
+  onDeleted?: () => void;
 }
 
 export function GroupSettingsPanel({
@@ -34,6 +35,7 @@ export function GroupSettingsPanel({
   onClose,
   onUpdated,
   onLeftGroup,
+  onDeleted,
 }: GroupSettingsPanelProps) {
   const [name, setName] = useState(initialName);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
@@ -50,6 +52,7 @@ export function GroupSettingsPanel({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setName(initialName);
@@ -163,6 +166,26 @@ export function GroupSettingsPanel({
       }
     } finally {
       setLeaving(false);
+    }
+  }
+
+  async function handleDeleteGroup() {
+    if (!onDeleted || !confirm("Удалить группу? Все участники потеряют доступ, сообщения будут удалены. Это действие нельзя отменить.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onClose();
+        onDeleted();
+      } else {
+        alert((data.error as string) || "Не удалось удалить группу");
+      }
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -377,7 +400,7 @@ export function GroupSettingsPanel({
             )}
 
             {onLeftGroup && (
-              <div className="border-t border-[var(--air-glass-border)] pt-6">
+              <div className="space-y-2 border-t border-[var(--air-glass-border)] pt-6">
                 <Button
                   type="button"
                   variant="secondary"
@@ -388,6 +411,18 @@ export function GroupSettingsPanel({
                   <LogOut className="h-4 w-4" />
                   {leaving ? "Выход…" : "Покинуть группу"}
                 </Button>
+                {myRole === "creator" && onDeleted && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full gap-2 border-red-500/50 bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                    onClick={handleDeleteGroup}
+                    disabled={deleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? "Удаление…" : "Удалить группу"}
+                  </Button>
+                )}
               </div>
             )}
           </div>

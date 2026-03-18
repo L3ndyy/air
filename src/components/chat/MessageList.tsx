@@ -222,6 +222,18 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
     );
   }
 
+  async function handleMarkRead(messageId: string) {
+    const { error } = await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("id", messageId);
+    if (!error) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, is_read: true } : m))
+      );
+    }
+  }
+
   const reactionsByMessage = useMemo(() => buildReactionsByMessage(reactions), [reactions]);
   const filteredMessages = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -321,9 +333,9 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
       ) : (
     <div className="flex-1 overflow-y-auto p-4">
       {dateGroups.map((group) => (
-        <div key={group.dateLabel} className="space-y-3">
-          <div className="flex justify-center">
-            <span className="rounded-full bg-[var(--air-glass)] px-3 py-1 text-xs [color:var(--air-text-muted)]">
+        <div key={group.dateLabel} className="space-y-2">
+          <div className="flex justify-center py-1">
+            <span className="rounded-full bg-[var(--air-input-bg)] px-3 py-1 text-xs [color:var(--air-text-muted)]">
               {group.dateLabel}
             </span>
           </div>
@@ -358,6 +370,7 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
               onAddReaction={handleAddReaction}
               onRemoveReaction={handleRemoveReaction}
               onReport={onReport}
+              onMarkRead={handleMarkRead}
             />
           ))}
         </div>

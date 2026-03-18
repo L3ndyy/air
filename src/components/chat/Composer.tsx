@@ -154,9 +154,9 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
   }, [content, adjustTextareaHeight]);
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-glass)] p-3 backdrop-blur-xl">
+    <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-surface)] p-3">
       {replyTo && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
+        <div className="flex items-center gap-2 rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
           <Reply className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
           <span className="min-w-0 flex-1 truncate" title={replyTo.content}>
             Ответ на: {replyTo.content.trim().slice(0, 60) || "сообщение"}
@@ -173,7 +173,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
         </div>
       )}
       {pendingFile && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
+        <div className="flex items-center gap-2 rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
           <Paperclip className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
           <span className="min-w-0 truncate">{pendingFile.name}</span>
           <button
@@ -200,7 +200,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] [color:var(--air-text-muted)] transition hover:bg-white/10 hover:[color:var(--air-text)]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
           aria-label="Прикрепить файл"
         >
           <Paperclip className="h-5 w-5" />
@@ -216,7 +216,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
             ref={emojiButtonRef}
             type="button"
             onClick={() => setEmojiOpen((v) => !v)}
-            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg [color:var(--air-text-muted)] transition hover:bg-white/10 hover:[color:var(--air-text)]"
+            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[12px] [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
             aria-label="Эмодзи"
           >
             <Smile className="h-5 w-5" />
@@ -237,7 +237,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
               send();
             }
           }}
-          className="min-h-[40px] max-h-[128px] w-full resize-none overflow-y-auto rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+          className="min-h-[40px] max-h-[128px] w-full resize-none overflow-y-auto rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-[var(--air-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20 transition"
           style={{ height: "auto", minHeight: "40px", maxHeight: "128px" }}
         />
         </div>
@@ -246,7 +246,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
           size="md"
           onClick={send}
           disabled={!canSend || sending || isBanned}
-          className="shrink-0"
+          className="shrink-0 rounded-[12px] bg-[var(--air-accent)] hover:opacity-90 border-0"
         >
           <Send className="h-5 w-5" />
         </Button>

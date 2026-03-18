@@ -18,22 +18,31 @@
   --air-glow: rgba(99, 102, 241, 0.15);
   --air-input-bg: rgba(255, 255, 255, 0.9);
   --air-ring-offset: white;
+  --tg-bubble-out: #6366f1;
+  --tg-bubble-in: #e5e5ea;
+  --tg-bubble-in-border: rgba(0, 0, 0, 0.06);
 }
 
 .dark,
 [data-theme="dark"] {
-  --air-bg: #1a1b1e;
-  --air-bg-end: #121214;
-  --air-surface: rgba(30, 31, 34, 0.9);
-  --air-glass: rgba(30, 31, 34, 0.75);
-  --air-glass-border: rgba(139, 92, 246, 0.2);
+  --air-bg: #1c1c1d;
+  --air-bg-end: #0d0d0e;
+  --air-surface: #2c2c2e;
+  --air-glass: rgba(44, 44, 46, 0.95);
+  --air-glass-border: rgba(255, 255, 255, 0.1);
   --air-border: rgba(255, 255, 255, 0.08);
   --air-text: #f3f4f6;
-  --air-text-muted: #9ca3af;
-  --air-muted: #9ca3af;
-  --air-glow: rgba(99, 102, 241, 0.25);
-  --air-input-bg: rgba(255, 255, 255, 0.06);
-  --air-ring-offset: #1a1b1e;
+  --air-text-muted: #8e8e93;
+  --air-muted: #8e8e93;
+  --air-glow: rgba(0, 122, 255, 0.2);
+  --air-input-bg: rgba(44, 44, 46, 0.8);
+  --air-ring-offset: #1c1c1d;
+  /* Telegram-style accent and bubbles */
+  --air-accent: #007aff;
+  --air-accent-end: #007aff;
+  --tg-bubble-out: #007aff;
+  --tg-bubble-in: #2c2c2e;
+  --tg-bubble-in-border: rgba(255, 255, 255, 0.06);
 }
 
 body {
@@ -90,4 +99,20 @@ textarea:focus-visible {
 
 .air-stagger-item {
   animation: air-fade-in-up 0.3s ease-out forwards;
+}
+
+/* Telegram-style message bubble shadows */
+.air-bubble-out {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.dark .air-bubble-out,
+[data-theme="dark"] .air-bubble-out {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.air-bubble-in {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.dark .air-bubble-in,
+[data-theme="dark"] .air-bubble-in {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }

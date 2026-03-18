@@ -461,6 +461,11 @@ export default function ChatPage() {
             setSelectedId(null);
             refreshConversations();
           }}
+          onDeleted={() => {
+            setShowGroupSettingsPanel(false);
+            setSelectedId(null);
+            refreshConversations();
+          }}
         />
       )}
     </div>

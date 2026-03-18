@@ -2,12 +2,26 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Trash2, Check, CheckCheck, MoreVertical, Pencil, Reply, SmilePlus, Flag } from "lucide-react";
+import {
+  Trash2,
+  Check,
+  CheckCheck,
+  MoreVertical,
+  Pencil,
+  Reply,
+  SmilePlus,
+  Flag,
+  Pin,
+  Copy,
+  Forward,
+  CheckSquare,
+  Eye,
+} from "lucide-react";
 import { LinkPreview, extractUrls } from "./LinkPreview";
 
 const IMAGE_EXTS = /\.(jpe?g|png|gif|webp|svg)(\?|$)/i;
 
-const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+const REACTION_EMOJIS = ["❤️", "👍", "🔥", "👏"];
 
 export interface ReplyToMessage {
   id: string;
@@ -40,6 +54,7 @@ interface MessageBubbleProps {
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   searchHighlight?: string;
   onReport?: (messageId: string) => void;
+  onMarkRead?: (messageId: string) => void;
 }
 
 function highlightContent(text: string, query: string): React.ReactNode {
@@ -110,8 +125,10 @@ export function MessageBubble({
   onRemoveReaction,
   searchHighlight,
   onReport,
+  onMarkRead,
 }: MessageBubbleProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -134,6 +151,17 @@ export function MessageBubble({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("scroll", close, true);
+    };
+  }, [contextMenu]);
 
   useEffect(() => {
     if (editing && editTextareaRef.current) {
@@ -177,6 +205,18 @@ export function MessageBubble({
       onAddReaction(messageId, emoji);
     }
     setShowReactionPicker(false);
+    setContextMenu(null);
+  }
+
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function copyText() {
+    const text = content.trim();
+    if (text) navigator.clipboard?.writeText(text);
+    setContextMenu(null);
   }
 
   const hasReactions = reactions.length > 0;
@@ -189,13 +229,110 @@ export function MessageBubble({
         "flex w-full scroll-mt-4",
         isOwn ? "justify-end" : "justify-start"
       )}
+      onContextMenu={handleContextMenu}
     >
+      {/* Context menu (right-click) */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[200px] rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] py-1.5 shadow-xl [color:var(--air-text)]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+        >
+          <div className="flex flex-wrap gap-1 border-b border-[var(--air-glass-border)] px-2 pb-2">
+            {REACTION_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                role="menuitem"
+                onClick={() => handleReactionClick(emoji)}
+                className="rounded p-1.5 text-lg transition hover:bg-[var(--air-input-bg)]"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          {onReply && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onReply(); setContextMenu(null); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            >
+              <Reply className="h-4 w-4 shrink-0" />
+              Ответить
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setContextMenu(null)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            title="Скоро"
+          >
+            <Pin className="h-4 w-4 shrink-0" />
+            Закрепить
+          </button>
+          {content.trim() && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={copyText}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            >
+              <Copy className="h-4 w-4 shrink-0" />
+              Копировать текст
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setContextMenu(null)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            title="Скоро"
+          >
+            <Forward className="h-4 w-4 shrink-0" />
+            Переслать
+          </button>
+          {onDelete && isOwn && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { handleDelete(); setContextMenu(null); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4 shrink-0" />
+              Удалить
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setContextMenu(null)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            title="Скоро"
+          >
+            <CheckSquare className="h-4 w-4 shrink-0" />
+            Выделить
+          </button>
+          {onMarkRead && !isOwn && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onMarkRead(messageId); setContextMenu(null); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            >
+              <Eye className="h-4 w-4 shrink-0" />
+              Прочитать
+            </button>
+          )}
+        </div>
+      )}
       <div
         className={cn(
-          "group relative max-w-[75%] rounded-2xl px-4 py-2",
+          "group relative max-w-[75%] rounded-[14px] px-4 py-2.5 transition-shadow",
           isOwn
-            ? "bg-gradient-to-r from-blue-400 to-purple-500 text-white"
-            : "bg-white/90 dark:bg-white/10 border border-gray-200/60 dark:border-[var(--air-glass-border)] text-gray-800 dark:[color:var(--air-text)] shadow-air"
+            ? "bg-[var(--tg-bubble-out,var(--air-accent))] text-white air-bubble-out"
+            : "bg-[var(--tg-bubble-in)] border border-[var(--tg-bubble-in-border,var(--air-glass-border))] text-[var(--air-text)] air-bubble-in"
         )}
       >
         {/* Reply quote */}
@@ -279,7 +416,7 @@ export function MessageBubble({
                 <p className="whitespace-pre-wrap break-words text-sm">
                   {renderContentWithMentions(content, searchHighlight)}
                 </p>
-                {!editing && extractUrls(content).map((url) => (
+                {!editing && extractUrls(content).map((url: string) => (
                   <LinkPreview key={url} url={url} />
                 ))}
               </>

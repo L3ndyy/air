@@ -96,6 +96,62 @@ export async function PATCH(
 }
 
 /**
+ * DELETE /api/conversations/[id]
+ * Delete the group. Only the creator can delete. Cascades participants and messages.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id: conversationId } = await params;
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation id required" }, { status: 400 });
+    }
+    const admin = getAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "Server not configured" }, { status: 503 });
+    }
+    const { data: conv } = await admin
+      .from("conversations")
+      .select("id, type")
+      .eq("id", conversationId)
+      .single();
+    if (!conv || conv.type !== "group") {
+      return NextResponse.json({ error: "Not a group or not found" }, { status: 404 });
+    }
+    const { data: part } = await admin
+      .from("participants")
+      .select("role")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const role = (part as { role?: string } | null)?.role ?? "member";
+    if (role !== "creator") {
+      return NextResponse.json({ error: "Только создатель группы может удалить группу" }, { status: 403 });
+    }
+    const { error: delErr } = await admin
+      .from("conversations")
+      .delete()
+      .eq("id", conversationId);
+    if (delErr) {
+      return NextResponse.json({ error: delErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * GET /api/conversations/[id]?name=...&avatar_url=...
  * Fallback для хостингов, где PATCH даёт 405. Обновляет название и/или аватар группы.
  */
