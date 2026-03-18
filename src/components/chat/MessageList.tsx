@@ -333,7 +333,7 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
       ) : (
     <div className="flex-1 overflow-y-auto p-4">
       {dateGroups.map((group) => (
-        <div key={group.dateLabel} className="space-y-2">
+        <div key={group.dateLabel} className="space-y-0.5">
           <div className="flex justify-center py-1">
             <span className="rounded-full bg-[var(--air-input-bg)] px-3 py-1 text-xs [color:var(--air-text-muted)]">
               {group.dateLabel}

@@ -40,7 +40,7 @@
   /* Telegram-style accent and bubbles */
   --air-accent: #007aff;
   --air-accent-end: #007aff;
-  --tg-bubble-out: #007aff;
+  --tg-bubble-out: #2b5278;
   --tg-bubble-in: #2c2c2e;
   --tg-bubble-in-border: rgba(255, 255, 255, 0.06);
 }
@@ -101,18 +101,8 @@ textarea:focus-visible {
   animation: air-fade-in-up 0.3s ease-out forwards;
 }
 
-/* Telegram-style message bubble shadows */
-.air-bubble-out {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-}
-.dark .air-bubble-out,
-[data-theme="dark"] .air-bubble-out {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
+/* Telegram-style: no shadows on bubbles for minimal look */
+.air-bubble-out,
 .air-bubble-in {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.dark .air-bubble-in,
-[data-theme="dark"] .air-bubble-in {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
 }

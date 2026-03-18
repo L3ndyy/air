@@ -329,20 +329,20 @@ export function MessageBubble({
       )}
       <div
         className={cn(
-          "group relative max-w-[75%] rounded-[14px] px-4 py-2.5 transition-shadow",
+          "group relative max-w-[85%] rounded-[12px] px-3 py-2",
           isOwn
             ? "bg-[var(--tg-bubble-out,var(--air-accent))] text-white air-bubble-out"
             : "bg-[var(--tg-bubble-in)] border border-[var(--tg-bubble-in-border,var(--air-glass-border))] text-[var(--air-text)] air-bubble-in"
         )}
       >
-        {/* Reply quote */}
+        {/* Reply quote — компактно */}
         {replyToMessage && (
           <button
             type="button"
             onClick={() => onScrollToMessage?.(replyToMessage!.id)}
-            className="mb-2 flex w-full items-start gap-2 rounded-lg border-l-2 border-white/50 pl-2 text-left text-xs opacity-90 hover:opacity-100"
+            className="mb-1.5 flex w-full items-start gap-1.5 border-l-2 border-white/40 pl-2 text-left text-[11px] opacity-85 hover:opacity-100"
           >
-            <Reply className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            <Reply className="h-3 w-3 shrink-0 opacity-70" />
             <span className="line-clamp-2 break-words">
               {replyToMessage.content.trim() || "Сообщение удалено"}
             </span>
@@ -350,7 +350,7 @@ export function MessageBubble({
         )}
 
         {attachmentUrl && (
-          <div className="mb-2">
+          <div className={content.trim() ? "mb-1.5" : ""}>
             {isImage ? (
               <a
                 href={attachmentUrl}
@@ -370,7 +370,7 @@ export function MessageBubble({
                 href={attachmentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm underline"
+                className="inline-flex items-center gap-1 text-sm underline opacity-90"
               >
                 Скачать файл
               </a>
@@ -413,62 +413,119 @@ export function MessageBubble({
           <>
             {content.trim() ? (
               <>
-                <p className="whitespace-pre-wrap break-words text-sm">
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                   {renderContentWithMentions(content, searchHighlight)}
+                  <span
+                    className={cn(
+                      "float-right clear-right ml-1.5 shrink-0 text-[11px]",
+                      isOwn ? "text-white/75" : "text-[var(--air-text-muted)]"
+                    )}
+                  >
+                    {editedAt && (
+                      <span title={new Date(editedAt).toLocaleString("ru-RU")}>изм. </span>
+                    )}
+                    {time}
+                    {isOwn && (
+                      <span className="ml-0.5 inline" title={isRead ? "Просмотрено" : "Доставлено"}>
+                        {showReadStatus ? (
+                          isRead ? <CheckCheck className="h-3 w-3 inline" /> : <Check className="h-3 w-3 inline" />
+                        ) : (
+                          <Check className="h-3 w-3 inline" />
+                        )}
+                      </span>
+                    )}
+                  </span>
                 </p>
                 {!editing && extractUrls(content).map((url: string) => (
                   <LinkPreview key={url} url={url} />
                 ))}
               </>
-            ) : null}
-            <div className="mt-1 flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-              {isOwn && (
-                <>
-                  {showReadStatus && (
-                    <span
-                      className="text-xs opacity-80"
-                      title={isRead ? "Просмотрено" : "Доставлено"}
-                    >
-                      {isRead ? (
-                        <CheckCheck className="h-3.5 w-3.5 inline" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5 inline" />
-                      )}
-                    </span>
-                  )}
-                  {!showReadStatus && (
-                    <span className="text-xs opacity-80" title="Доставлено">
-                      <Check className="h-3.5 w-3.5 inline" />
-                    </span>
-                  )}
-                </>
-              )}
-              {editedAt && (
+            ) : (
+              <div className="flex items-center justify-end gap-1.5">
+                {editedAt && (
+                  <span
+                    className={cn(
+                      "text-[11px]",
+                      isOwn ? "text-white/70" : "text-[var(--air-text-muted)]"
+                    )}
+                  >
+                    изм.
+                  </span>
+                )}
                 <span
                   className={cn(
-                    "text-xs",
-                    isOwn ? "text-white/70" : "text-gray-400 dark:[color:var(--air-text-muted)]"
+                    "text-[11px]",
+                    isOwn ? "text-white/75" : "text-[var(--air-text-muted)]"
                   )}
-                  title={new Date(editedAt).toLocaleString("ru-RU")}
                 >
-                  изменено
+                  {time}
                 </span>
-              )}
-              <span
-                className={cn(
-                  "text-xs",
-                  isOwn ? "text-white/80" : "text-gray-400 dark:[color:var(--air-text-muted)]"
+                {isOwn && (
+                  <span title={isRead ? "Просмотрено" : "Доставлено"}>
+                    {showReadStatus ? (
+                      isRead ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
+                    ) : (
+                      <Check className="h-3 w-3" />
+                    )}
+                  </span>
                 )}
-              >
-                {time}
-              </span>
-              {/* Menu: only for own messages */}
+              </div>
+            )}
+            {/* Кнопки только при наведении */}
+            <div className="mt-0.5 flex min-h-[20px] items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 [.group:focus-within_&]:opacity-100">
+              {onReply && !isOwn && (
+                <button
+                  type="button"
+                  onClick={onReply}
+                  className="rounded p-0.5 hover:bg-white/10"
+                  aria-label="Ответить"
+                  title="Ответить"
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {onAddReaction && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowReactionPicker((v) => !v)}
+                    className="rounded p-0.5 hover:bg-white/10"
+                    aria-label="Реакция"
+                  >
+                    <SmilePlus className="h-3.5 w-3.5" />
+                  </button>
+                  {showReactionPicker && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        aria-hidden
+                        onClick={() => setShowReactionPicker(false)}
+                      />
+                      <div
+                        className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-[var(--air-glass-border)] bg-[var(--air-surface)] px-1.5 py-1 shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {REACTION_EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleReactionClick(emoji)}
+                            className="rounded p-0.5 text-lg hover:bg-[var(--air-glass)]"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               {(onDelete || onEdit) && isOwn && (
                 <div className="relative" ref={menuRef}>
                   <button
                     type="button"
                     onClick={() => setShowMenu((v) => !v)}
-                    className="rounded p-0.5 opacity-70 hover:opacity-100"
+                    className="rounded p-0.5 hover:bg-white/10"
                     aria-label="Меню"
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
@@ -504,23 +561,11 @@ export function MessageBubble({
                   )}
                 </div>
               )}
-              {/* Reply: for others' messages */}
-              {onReply && !isOwn && (
-                <button
-                  type="button"
-                  onClick={onReply}
-                  className="rounded p-0.5 opacity-70 hover:opacity-100"
-                  aria-label="Ответить"
-                  title="Ответить"
-                >
-                  <Reply className="h-3.5 w-3.5" />
-                </button>
-              )}
               {onReport && !isOwn && (
                 <button
                   type="button"
                   onClick={() => onReport(messageId)}
-                  className="rounded p-0.5 opacity-70 hover:opacity-100"
+                  className="rounded p-0.5 hover:bg-white/10"
                   aria-label="Пожаловаться"
                   title="Пожаловаться"
                 >
@@ -528,61 +573,24 @@ export function MessageBubble({
                 </button>
               )}
             </div>
-            {/* Reactions */}
-            {(hasReactions || onAddReaction) && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {hasReactions && (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
                 {reactions.map((r) => (
                   <button
                     key={r.emoji}
                     type="button"
                     onClick={() => handleReactionClick(r.emoji)}
                     className={cn(
-                      "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-sm transition",
+                      "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition",
                       r.userIds.includes(currentUserId)
-                        ? "bg-white/25"
+                        ? "bg-white/20"
                         : "bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15"
                     )}
                   >
                     <span>{r.emoji}</span>
-                    {r.count > 1 && <span className="text-xs opacity-90">{r.count}</span>}
+                    {r.count > 1 && <span className="opacity-90">{r.count}</span>}
                   </button>
                 ))}
-                {onAddReaction && (
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowReactionPicker((v) => !v)}
-                      className="rounded-full p-0.5 opacity-60 hover:opacity-100"
-                      aria-label="Добавить реакцию"
-                    >
-                      <SmilePlus className="h-4 w-4" />
-                    </button>
-                    {showReactionPicker && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          aria-hidden
-                          onClick={() => setShowReactionPicker(false)}
-                        />
-                        <div
-                          className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-[var(--air-glass-border)] bg-[var(--air-surface)] px-1.5 py-1 shadow-lg"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {REACTION_EMOJIS.map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleReactionClick(emoji)}
-                              className="rounded p-0.5 text-lg hover:bg-[var(--air-glass)]"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </>
