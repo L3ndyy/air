@@ -166,7 +166,6 @@ export function MessageBubble({
   function startEdit() {
     setEditContent(content);
     setEditing(true);
-    setShowMenu(false);
   }
 
   function saveEdit() {
