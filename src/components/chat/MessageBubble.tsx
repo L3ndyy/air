@@ -127,12 +127,10 @@ export function MessageBubble({
   onReport,
   onMarkRead,
 }: MessageBubbleProps) {
-  const [showMenu, setShowMenu] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const time = new Date(createdAt).toLocaleTimeString("ru-RU", {
@@ -140,17 +138,6 @@ export function MessageBubble({
     minute: "2-digit",
   });
   const isImage = attachmentUrl ? IMAGE_EXTS.test(attachmentUrl) : false;
-
-  useEffect(() => {
-    if (!showMenu) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showMenu]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -173,7 +160,6 @@ export function MessageBubble({
   function handleDelete() {
     if (onDelete && confirm("Удалить сообщение?")) {
       onDelete(messageId);
-      setShowMenu(false);
     }
   }
 
@@ -293,6 +279,17 @@ export function MessageBubble({
             <Forward className="h-4 w-4 shrink-0" />
             Переслать
           </button>
+          {onEdit && isOwn && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { startEdit(); setContextMenu(null); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+            >
+              <Pencil className="h-4 w-4 shrink-0" />
+              Изменить
+            </button>
+          )}
           {onDelete && isOwn && (
             <button
               type="button"
@@ -323,6 +320,17 @@ export function MessageBubble({
             >
               <Eye className="h-4 w-4 shrink-0" />
               Прочитать
+            </button>
+          )}
+          {onReport && !isOwn && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onReport(messageId); setContextMenu(null); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-amber-600 hover:bg-amber-500/10"
+            >
+              <Flag className="h-4 w-4 shrink-0" />
+              Пожаловаться
             </button>
           )}
         </div>
@@ -471,108 +479,6 @@ export function MessageBubble({
                 )}
               </div>
             )}
-            {/* Кнопки только при наведении */}
-            <div className="mt-0.5 flex min-h-[20px] items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 [.group:focus-within_&]:opacity-100">
-              {onReply && !isOwn && (
-                <button
-                  type="button"
-                  onClick={onReply}
-                  className="rounded p-0.5 hover:bg-white/10"
-                  aria-label="Ответить"
-                  title="Ответить"
-                >
-                  <Reply className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {onAddReaction && (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowReactionPicker((v) => !v)}
-                    className="rounded p-0.5 hover:bg-white/10"
-                    aria-label="Реакция"
-                  >
-                    <SmilePlus className="h-3.5 w-3.5" />
-                  </button>
-                  {showReactionPicker && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        aria-hidden
-                        onClick={() => setShowReactionPicker(false)}
-                      />
-                      <div
-                        className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-full border border-[var(--air-glass-border)] bg-[var(--air-surface)] px-1.5 py-1 shadow-lg"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {REACTION_EMOJIS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => handleReactionClick(emoji)}
-                            className="rounded p-0.5 text-lg hover:bg-[var(--air-glass)]"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-              {(onDelete || onEdit) && isOwn && (
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowMenu((v) => !v)}
-                    className="rounded p-0.5 hover:bg-white/10"
-                    aria-label="Меню"
-                  >
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </button>
-                  {showMenu && (
-                    <div
-                      className={cn(
-                        "absolute right-0 top-full z-10 mt-0.5 flex flex-col rounded-lg border py-1 shadow-lg",
-                        "border-[var(--air-glass-border)] bg-[var(--air-surface)]"
-                      )}
-                    >
-                      {onEdit && (
-                        <button
-                          type="button"
-                          onClick={startEdit}
-                          className="flex items-center gap-2 px-3 py-1.5 text-left text-sm [color:var(--air-text)] hover:bg-[var(--air-glass)]"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Изменить
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          type="button"
-                          onClick={handleDelete}
-                          className="flex items-center gap-2 px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Удалить
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              {onReport && !isOwn && (
-                <button
-                  type="button"
-                  onClick={() => onReport(messageId)}
-                  className="rounded p-0.5 hover:bg-white/10"
-                  aria-label="Пожаловаться"
-                  title="Пожаловаться"
-                >
-                  <Flag className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
             {hasReactions && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {reactions.map((r) => (

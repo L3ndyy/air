@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle } from "lucide-react";
+import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle, Flag, EyeOff, Ban, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface Stats {
@@ -23,6 +23,23 @@ interface AdminUser {
   full_name: string | null;
 }
 
+interface AdminReport {
+  id: string;
+  message_id: string;
+  reporter_id: string;
+  reporter_username: string | null;
+  reporter_name: string | null;
+  reason: string | null;
+  created_at: string;
+  message_content: string | null;
+  message_created_at: string | null;
+  message_hidden: boolean;
+  author_id: string | null;
+  author_username: string | null;
+  author_name: string | null;
+  conversation_id: string | null;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
@@ -34,6 +51,9 @@ export default function AdminPage() {
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [passwordId, setPasswordId] = useState<string | null>(null);
+  const [reports, setReports] = useState<AdminReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -43,10 +63,11 @@ export default function AdminPage() {
         router.replace("/chat");
         return;
       }
-      const [statsRes, maintRes, usersRes] = await Promise.all([
+      const [statsRes, maintRes, usersRes, reportsRes] = await Promise.all([
         fetch("/api/admin/stats", { credentials: "include" }),
         fetch("/api/admin/maintenance", { credentials: "include" }),
         fetch("/api/admin/users", { credentials: "include" }),
+        fetch("/api/admin/reports", { credentials: "include" }),
       ]);
       if (!statsRes.ok) {
         setError("Не удалось загрузить статистику");
@@ -64,6 +85,10 @@ export default function AdminPage() {
       if (usersRes.ok) {
         const usersData = await usersRes.json();
         setAdminUsers(usersData.users ?? []);
+      }
+      if (reportsRes.ok) {
+        const reportsData = await reportsRes.json();
+        setReports(Array.isArray(reportsData) ? reportsData : []);
       }
       setLoading(false);
     })();
@@ -114,6 +139,48 @@ export default function AdminPage() {
       setAdminUsers((prev) => prev.filter((x) => x.id !== u.id));
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function fetchReports() {
+    setReportsLoading(true);
+    try {
+      const res = await fetch("/api/admin/reports", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setReports(Array.isArray(data) ? data : []);
+      }
+    } finally {
+      setReportsLoading(false);
+    }
+  }
+
+  async function handleResolveReport(reportId: string, action: "dismiss" | "hide" | "delete" | "ban", banDays?: number) {
+    const confirmMsg =
+      action === "dismiss"
+        ? "Отклонить жалобу (удалить только запись о жалобе)?"
+        : action === "hide"
+          ? "Скрыть сообщение из чата?"
+          : action === "delete"
+            ? "Удалить сообщение навсегда?"
+            : `Забанить автора на ${banDays ?? 1} дн.? Сообщение будет скрыто.`;
+    if (!confirm(confirmMsg)) return;
+    setResolvingId(reportId);
+    try {
+      const res = await fetch(`/api/admin/reports/${reportId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action, banDays: banDays ?? 1 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Ошибка");
+        return;
+      }
+      await fetchReports();
+    } finally {
+      setResolvingId(null);
     }
   }
 
@@ -330,6 +397,102 @@ export default function AdminPage() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold [color:var(--air-text)]">
+            <Flag className="h-5 w-5 text-amber-500" />
+            Жалобы на сообщения
+          </h2>
+          <p className="mb-4 text-xs [color:var(--air-text-muted)]">
+            Ответ на жалобы: отклонить, скрыть сообщение, удалить сообщение или забанить автора.
+          </p>
+          <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] overflow-hidden">
+            {reportsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm [color:var(--air-text-muted)]">
+                Нет жалоб
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--air-glass-border)]">
+                {reports.map((r) => (
+                  <div
+                    key={r.id}
+                    className="px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium [color:var(--air-text)]">
+                          Жалоба от @{r.reporter_username ?? r.reporter_id.slice(0, 8)}
+                          {r.reporter_name && ` (${r.reporter_name})`}
+                        </p>
+                        <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">
+                          {new Date(r.created_at).toLocaleString("ru-RU")}
+                          {r.reason && ` · ${r.reason}`}
+                        </p>
+                        <p className="mt-1.5 rounded-lg bg-[var(--air-input-bg)] px-2 py-1.5 text-xs [color:var(--air-text)]">
+                          {r.message_content ?? "(пустое сообщение)"}
+                        </p>
+                        <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                          Автор: @{r.author_username ?? r.author_id?.slice(0, 8)}
+                          {r.author_name && ` (${r.author_name})`}
+                          {r.message_hidden && " · сообщение скрыто"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(r.id, "dismiss")}
+                          disabled={resolvingId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-2.5 py-1.5 text-xs [color:var(--air-text)] hover:bg-[var(--air-glass)] disabled:opacity-50"
+                          title="Отклонить жалобу"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          Отклонить
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(r.id, "hide")}
+                          disabled={resolvingId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600 hover:bg-amber-500/20 disabled:opacity-50"
+                          title="Скрыть сообщение"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                          Скрыть
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(r.id, "delete")}
+                          disabled={resolvingId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                          title="Удалить сообщение"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Удалить
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResolveReport(r.id, "ban", 1)}
+                          disabled={resolvingId !== null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/50 bg-red-500/15 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-500/25 disabled:opacity-50"
+                          title="Забанить автора на 1 день"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          Бан 1 дн.
+                        </button>
+                      </div>
+                    </div>
+                    {resolvingId === r.id && (
+                      <div className="mt-2 text-xs [color:var(--air-text-muted)]">Обработка…</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
