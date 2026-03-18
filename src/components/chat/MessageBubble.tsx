@@ -156,6 +156,7 @@ export function MessageBubble({
   onMentionClick,
 }: MessageBubbleProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -163,6 +164,7 @@ export function MessageBubble({
   const [reactionStripPos, setReactionStripPos] = useState<{ x: number; y: number } | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const time = new Date(createdAt).toLocaleTimeString("ru-RU", {
     hour: "2-digit",
@@ -173,7 +175,10 @@ export function MessageBubble({
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
+    const close = () => {
+      setContextMenu(null);
+      setContextMenuPos(null);
+    };
     document.addEventListener("mousedown", close);
     document.addEventListener("scroll", close, true);
     return () => {
@@ -183,10 +188,48 @@ export function MessageBubble({
   }, [contextMenu]);
 
   useEffect(() => {
+    if (!contextMenu) return;
+
+    // Measure and adjust menu position so it never overflows the viewport.
+    const raf = requestAnimationFrame(() => {
+      const el = contextMenuRef.current;
+      if (!el) return;
+
+      const margin = 8;
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      let left = contextMenu.x;
+      let top = contextMenu.y;
+
+      // If overflowing right edge, position to the left of the cursor.
+      if (left + rect.width + margin > vw) {
+        left = contextMenu.x - rect.width;
+      }
+      // If overflowing bottom edge, position above the cursor.
+      if (top + rect.height + margin > vh) {
+        top = contextMenu.y - rect.height;
+      }
+
+      // Clamp to safe bounds.
+      left = Math.max(margin, Math.min(left, vw - rect.width - margin));
+      top = Math.max(margin, Math.min(top, vh - rect.height - margin));
+
+      setContextMenuPos({ left, top });
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [contextMenu]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
 
-      if (contextMenu) setContextMenu(null);
+      if (contextMenu) {
+        setContextMenu(null);
+        setContextMenuPos(null);
+      }
       if (editing) setEditing(false);
       if (showReactionPicker) setShowReactionPicker(false);
       if (showReactionStrip) {
@@ -256,6 +299,7 @@ export function MessageBubble({
     }
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
+    setContextMenuPos(null);
   }
 
   function cancelLongPress() {
@@ -317,8 +361,9 @@ export function MessageBubble({
       {/* Context menu (right-click) */}
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           className="fixed z-50 min-w-[200px] rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] py-1.5 shadow-xl [color:var(--air-text)]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={contextMenuPos ? { left: contextMenuPos.left, top: contextMenuPos.top } : { left: contextMenu.x, top: contextMenu.y }}
           role="menu"
         >
           <div className="flex flex-wrap gap-1 border-b border-[var(--air-glass-border)] px-2 pb-2">
