@@ -169,6 +169,7 @@ export function MessageBubble({
     minute: "2-digit",
   });
   const isImage = attachmentUrl ? IMAGE_EXTS.test(attachmentUrl) : false;
+  const isImageOnlyAttachment = Boolean(attachmentUrl && isImage && !content.trim());
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -499,7 +500,7 @@ export function MessageBubble({
                 href={attachmentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block overflow-hidden rounded-lg"
+                className="relative block overflow-hidden rounded-md"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -507,6 +508,9 @@ export function MessageBubble({
                   alt="Вложение"
                   className="max-h-48 w-full object-cover"
                 />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/40 px-2 py-1 text-center text-[11px] opacity-0 transition-opacity group-hover:opacity-100">
+                  {time}
+                </div>
               </a>
             ) : (
               <a
@@ -584,35 +588,37 @@ export function MessageBubble({
                 ))}
               </>
             ) : (
-              <div className="flex items-center justify-end gap-1.5">
-                {editedAt && (
+              isImageOnlyAttachment ? null : (
+                <div className="flex items-center justify-end gap-1.5">
+                  {editedAt && (
+                    <span
+                      className={cn(
+                        "text-[11px]",
+                        isOwn ? "text-white/70" : "text-[var(--air-text-muted)]"
+                      )}
+                    >
+                      изм.
+                    </span>
+                  )}
                   <span
                     className={cn(
                       "text-[11px]",
-                      isOwn ? "text-white/70" : "text-[var(--air-text-muted)]"
+                      isOwn ? "text-white/75" : "text-[var(--air-text-muted)]"
                     )}
                   >
-                    изм.
+                    {time}
                   </span>
-                )}
-                <span
-                  className={cn(
-                    "text-[11px]",
-                    isOwn ? "text-white/75" : "text-[var(--air-text-muted)]"
+                  {isOwn && (
+                    <span title={isRead ? "Просмотрено" : "Доставлено"}>
+                      {showReadStatus ? (
+                        isRead ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                    </span>
                   )}
-                >
-                  {time}
-                </span>
-                {isOwn && (
-                  <span title={isRead ? "Просмотрено" : "Доставлено"}>
-                    {showReadStatus ? (
-                      isRead ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
-                    ) : (
-                      <Check className="h-3 w-3" />
-                    )}
-                  </span>
-                )}
-              </div>
+                </div>
+              )
             )}
             {hasReactions && (
               <div className="mt-1 flex flex-wrap items-center gap-1">

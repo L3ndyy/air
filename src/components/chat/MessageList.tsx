@@ -609,14 +609,14 @@ export function MessageList({
           {mediaItems.length === 0 ? (
             <p className="py-8 text-center text-sm [color:var(--air-text-muted)]">Нет вложений</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-2">
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-3 md:grid-cols-4">
               {mediaItems.map((m) => (
                 <div key={m.id} className="relative">
                   {m.isImage ? (
                     <button
                       type="button"
                       onClick={() => openMediaViewer(m.attachment_url!, m.created_at)}
-                      className="group block w-full overflow-hidden rounded-xl bg-[var(--air-input-bg)]"
+                      className="group block w-full overflow-hidden rounded-lg bg-[var(--air-input-bg)]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -624,7 +624,7 @@ export function MessageList({
                         alt="Вложение"
                         className="aspect-square w-full object-cover"
                       />
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/40 px-2 py-1 text-center text-[11px] opacity-0 transition group-hover:opacity-100">
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/40 px-1 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">
                         {formatMessageTime(m.created_at)}
                       </div>
                     </button>
@@ -633,9 +633,9 @@ export function MessageList({
                       href={m.attachment_url!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block overflow-hidden rounded-xl bg-[var(--air-input-bg)]"
+                      className="block overflow-hidden rounded-lg bg-[var(--air-input-bg)]"
                     >
-                      <div className="flex aspect-square items-center justify-center p-4 text-center text-xs [color:var(--air-text-muted)]">
+                      <div className="flex aspect-square items-center justify-center p-2 text-center text-[10px] [color:var(--air-text-muted)]">
                         Файл
                       </div>
                     </a>
