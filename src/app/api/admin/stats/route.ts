@@ -27,11 +27,34 @@ export async function GET() {
       .select("*", { count: "exact", head: true })
       .gte("updated_at", iso);
 
+    const { count: totalConvs } = await admin
+      .from("conversations")
+      .select("*", { count: "exact", head: true });
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+    const todayIso = todayStart.toISOString();
+    const weekIso = weekStart.toISOString();
+
+    const { count: messagesToday } = await admin
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", todayIso);
+
+    const { count: messagesWeek } = await admin
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", weekIso);
+
     const mem = process.memoryUsage();
     const uptimeSec = process.uptime();
 
     return NextResponse.json({
       users: { total: totalUsers ?? 0, activeLast24h: activeCount ?? 0 },
+      conversations: { total: totalConvs ?? 0 },
+      messages: { today: messagesToday ?? 0, week: messagesWeek ?? 0 },
       server: {
         uptimeSeconds: Math.floor(uptimeSec),
         memoryMB: {

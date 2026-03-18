@@ -23,9 +23,19 @@ async function sendNotify(
       .from("participants")
       .select("user_id")
       .eq("conversation_id", conversationId);
-    const recipientIds = (participants ?? [])
+    let recipientIds = (participants ?? [])
       .map((p) => p.user_id)
       .filter((id) => id !== user.id);
+    if (recipientIds.length === 0) return NextResponse.json({ ok: true });
+
+    const { data: profiles } = await admin
+      .from("profiles")
+      .select("id, do_not_disturb")
+      .in("id", recipientIds);
+    const dndIds = new Set(
+      (profiles ?? []).filter((p) => (p as { do_not_disturb?: boolean }).do_not_disturb).map((p) => p.id)
+    );
+    recipientIds = recipientIds.filter((id) => !dndIds.has(id));
     if (recipientIds.length === 0) return NextResponse.json({ ok: true });
 
     const { data: subs } = await admin

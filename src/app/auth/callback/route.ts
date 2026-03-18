@@ -5,9 +5,10 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as EmailOtpType | null;
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/chat";
+  let next = searchParams.get("next") ?? "/chat";
+  const type = searchParams.get("type") as EmailOtpType | null;
+  if (type === "recovery") next = "/reset-password";
 
   if (code) {
     const supabase = await createClient();

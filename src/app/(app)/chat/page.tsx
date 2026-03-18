@@ -89,6 +89,7 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -112,6 +113,7 @@ export default function ChatPage() {
     if (conversationIdFromUrl && conversations.some((c) => c.id === conversationIdFromUrl)) {
       setSelectedId(conversationIdFromUrl);
       setSidebarOpen(false);
+      setReplyTo(null);
     }
   }, [conversationIdFromUrl, conversations]);
 
@@ -140,15 +142,43 @@ export default function ChatPage() {
     setConversations(list);
   }, [supabase]);
 
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setConversationsLoading(false);
+        return;
+      }
       setCurrentUser({ id: user.id });
       const list = await loadConversations(supabase, user.id);
       setConversations(list);
+      setConversationsLoading(false);
     })();
   }, [supabase]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase.channel("presence:online");
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        channel.track({ user_id: currentUser.id });
+      }
+    });
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      const ids = new Set<string>();
+      Object.values(state).flat().forEach((p) => {
+        const uid = (p as { user_id?: string }).user_id;
+        if (uid) ids.add(uid);
+      });
+      setOnlineUserIds(ids);
+    });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, supabase]);
 
   async function startDirectChat() {
     const username = newChatUsername.trim().toLowerCase();
@@ -234,6 +264,8 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGroupSettingsPanel, setShowGroupSettingsPanel] = useState(false);
   const [otherProfileUsername, setOtherProfileUsername] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
+  const [chatSearch, setChatSearch] = useState("");
 
   useEffect(() => {
     if (showProfilePanel) setSidebarOpen(false);
@@ -246,6 +278,8 @@ export default function ChatPage() {
   function handleSelectChat(id: string) {
     setSelectedId(id);
     setSidebarOpen(false);
+    setReplyTo(null);
+    setChatSearch("");
     setTimeout(() => refreshConversations(), 500);
   }
 
@@ -261,19 +295,22 @@ export default function ChatPage() {
         (payload) => {
           const msg = payload.new as { conversation_id: string; sender_id: string };
           refreshConversations();
-          if (msg.sender_id !== currentUser.id && msg.conversation_id !== selectedId) {
+          if (msg.sender_id !== currentUser.id && msg.conversation_id !== selectedId && !profile?.do_not_disturb) {
             setToast("Новое сообщение");
-            try {
-              const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              osc.frequency.value = 800;
-              gain.gain.value = 0.1;
-              osc.start(ctx.currentTime);
-              osc.stop(ctx.currentTime + 0.1);
-            } catch {}
+            const soundOn = typeof window !== "undefined" && localStorage.getItem("air-sound-enabled") !== "false";
+            if (soundOn) {
+              try {
+                const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 800;
+                gain.gain.value = 0.1;
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.1);
+              } catch {}
+            }
             setTimeout(() => setToast(null), 3000);
           }
         }
@@ -282,7 +319,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser?.id, selectedId, supabase, refreshConversations]);
+  }, [currentUser?.id, selectedId, supabase, refreshConversations, profile?.do_not_disturb]);
 
   return (
     <div className="relative flex h-full">
@@ -305,6 +342,8 @@ export default function ChatPage() {
         selectedId={selectedId}
         onSelect={handleSelectChat}
         profile={profile}
+        onlineUserIds={onlineUserIds}
+        loading={conversationsLoading}
         onNewChatClick={() => setShowNewChatModal(true)}
         className={cn(
           "fixed inset-y-0 left-0 z-40 transition-transform duration-300 ease-out md:relative md:z-auto",
@@ -342,9 +381,33 @@ export default function ChatPage() {
                   ? () => setOtherProfileUsername(selected.otherParticipant!.username)
                   : undefined
               }
+              searchValue={chatSearch}
+              onSearchChange={setChatSearch}
+              onClearSearch={() => setChatSearch("")}
             />
-            <MessageList conversationId={selectedId} currentUserId={currentUser?.id ?? ""} />
-            <Composer conversationId={selectedId} />
+            <MessageList
+              conversationId={selectedId}
+              currentUserId={currentUser?.id ?? ""}
+              searchQuery={chatSearch.trim()}
+              onReplyTo={(msg) => setReplyTo({ id: msg.id, content: msg.content })}
+              onReport={async (messageId) => {
+                if (!confirm("Отправить жалобу на сообщение?")) return;
+                const res = await fetch("/api/reports", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ messageId }),
+                });
+                if (res.ok) alert("Жалоба отправлена");
+                else alert("Не удалось отправить");
+              }}
+            />
+            <Composer
+              conversationId={selectedId}
+              replyTo={replyTo}
+              onClearReply={() => setReplyTo(null)}
+              isBanned={!!(profile?.banned_until && new Date(profile.banned_until) > new Date())}
+            />
           </>
         ) : (
           <ChatPlaceholder />
@@ -382,15 +445,22 @@ export default function ChatPage() {
         <UserProfilePanel
           username={otherProfileUsername}
           onClose={() => setOtherProfileUsername(null)}
+          onlineUserIds={onlineUserIds}
         />
       )}
-      {showGroupSettingsPanel && selected?.type === "group" && selectedId && (
+      {showGroupSettingsPanel && selected?.type === "group" && selectedId && currentUser?.id && (
         <GroupSettingsPanel
           conversationId={selectedId}
           name={selected.name ?? "Группа"}
           avatarUrl={selected.avatar_url}
+          currentUserId={currentUser.id}
           onClose={() => setShowGroupSettingsPanel(false)}
           onUpdated={() => refreshConversations()}
+          onLeftGroup={() => {
+            setShowGroupSettingsPanel(false);
+            setSelectedId(null);
+            refreshConversations();
+          }}
         />
       )}
     </div>

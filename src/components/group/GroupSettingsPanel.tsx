@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Users, UserPlus, Link2 } from "lucide-react";
+import { X, Users, UserPlus, Link2, LogOut } from "lucide-react";
 import { Avatar, Button, Input } from "@/components/ui";
 import { EMOJI_LIST } from "@/lib/emoji";
 
@@ -9,36 +9,47 @@ const EMOJI_PREFIX = "emoji:";
 
 export interface GroupParticipant {
   user_id: string;
-  id: string;
+  id?: string;
   username: string;
   full_name: string | null;
   avatar_url: string | null;
+  role?: string;
 }
 
 interface GroupSettingsPanelProps {
   conversationId: string;
   name: string;
   avatarUrl: string | null;
+  currentUserId: string;
   onClose: () => void;
   onUpdated: () => void;
+  onLeftGroup?: () => void;
 }
 
 export function GroupSettingsPanel({
   conversationId,
   name: initialName,
   avatarUrl: initialAvatarUrl,
+  currentUserId,
   onClose,
   onUpdated,
+  onLeftGroup,
 }: GroupSettingsPanelProps) {
   const [name, setName] = useState(initialName);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
   const [savingName, setSavingName] = useState(false);
   const [participants, setParticipants] = useState<GroupParticipant[]>([]);
+  const myRole = participants.find((p) => p.user_id === currentUserId)?.role ?? "member";
+  const canManage = myRole === "creator" || myRole === "admin";
   const [loadingParticipants, setLoadingParticipants] = useState(true);
   const [addUsername, setAddUsername] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   useEffect(() => {
     setName(initialName);
@@ -102,6 +113,59 @@ export function GroupSettingsPanel({
     }
   }
 
+  async function handleCreateInvite() {
+    setInviteLoading(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ expiresInDays: 7 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && typeof (data as { inviteUrl?: string }).inviteUrl === "string") {
+        setInviteUrl((data as { inviteUrl: string }).inviteUrl);
+      } else {
+        alert((data.error as string) || "Не удалось создать ссылку");
+      }
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  function handleCopyInvite() {
+    if (!inviteUrl) return;
+    navigator.clipboard?.writeText(inviteUrl).then(() => {
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    });
+  }
+
+  async function handleLeaveGroup() {
+    if (!onLeftGroup || !confirm("Покинуть группу? Вы перестанете получать сообщения.")) return;
+    setLeaving(true);
+    try {
+      let res = await fetch(`/api/conversations/${conversationId}/participants`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.status === 405) {
+        res = await fetch(`/api/conversations/${conversationId}/participants?action=leave`, {
+          credentials: "include",
+        });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onClose();
+        onLeftGroup();
+      } else {
+        alert((data.error as string) || "Не удалось выйти из группы");
+      }
+    } finally {
+      setLeaving(false);
+    }
+  }
+
   async function handleAddMember() {
     const username = addUsername.trim().toLowerCase();
     if (!username) return;
@@ -152,6 +216,7 @@ export function GroupSettingsPanel({
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-8">
+            {canManage && (
             <div>
               <p className="mb-2 text-xs font-medium [color:var(--air-text-muted)]">Название</p>
               <div className="flex gap-2">
@@ -171,7 +236,9 @@ export function GroupSettingsPanel({
                 </Button>
               </div>
             </div>
+            )}
 
+            {canManage && (
             <div>
               <p className="mb-2 text-xs font-medium [color:var(--air-text-muted)]">Аватар группы</p>
               <div className="flex items-center gap-4">
@@ -204,6 +271,7 @@ export function GroupSettingsPanel({
                 </div>
               )}
             </div>
+            )}
 
             <div>
               <p className="mb-2 flex items-center gap-2 text-xs font-medium [color:var(--air-text-muted)]">
@@ -229,6 +297,12 @@ export function GroupSettingsPanel({
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium [color:var(--air-text)]">
                           {p.full_name || p.username}
+                          {p.role === "creator" && (
+                            <span className="ml-1.5 text-xs font-normal [color:var(--air-text-muted)]">· Создатель</span>
+                          )}
+                          {p.role === "admin" && (
+                            <span className="ml-1.5 text-xs font-normal [color:var(--air-text-muted)]">· Админ</span>
+                          )}
                         </p>
                         <p className="truncate text-xs [color:var(--air-text-muted)]">
                           @{p.username}
@@ -238,6 +312,7 @@ export function GroupSettingsPanel({
                   ))}
                 </ul>
               )}
+              {canManage && (
               <div className="mt-3 flex gap-2">
                 <Input
                   value={addUsername}
@@ -256,20 +331,65 @@ export function GroupSettingsPanel({
                   Добавить
                 </Button>
               </div>
+              )}
               {addError && (
                 <p className="mt-2 text-sm text-red-500 dark:text-red-400">{addError}</p>
               )}
             </div>
 
+            {canManage && (
             <div className="rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] p-4">
               <p className="flex items-center gap-2 text-sm font-medium [color:var(--air-text-muted)]">
                 <Link2 className="h-4 w-4" />
                 Пригласительная ссылка
               </p>
-              <p className="mt-1 text-xs [color:var(--air-text-muted)]">
-                Скоро: можно будет приглашать по ссылке.
-              </p>
+              {inviteUrl ? (
+                <>
+                  <p className="mt-2 truncate rounded bg-[var(--air-surface)] px-2 py-1.5 text-xs [color:var(--air-text)]">
+                    {inviteUrl}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="mt-2"
+                    onClick={handleCopyInvite}
+                  >
+                    {inviteCopied ? "Скопировано" : "Копировать ссылку"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                    Ссылка действует 7 дней. По клику участник присоединится к группе.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="mt-2"
+                    onClick={handleCreateInvite}
+                    disabled={inviteLoading}
+                  >
+                    {inviteLoading ? "…" : "Создать ссылку"}
+                  </Button>
+                </>
+              )}
             </div>
+            )}
+
+            {onLeftGroup && (
+              <div className="border-t border-[var(--air-glass-border)] pt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full gap-2 border-red-500/30 text-red-600 hover:bg-red-500/10"
+                  onClick={handleLeaveGroup}
+                  disabled={leaving}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {leaving ? "Выход…" : "Покинуть группу"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

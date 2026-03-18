@@ -46,8 +46,8 @@ async function handleCreateGroup(
       );
     }
 
-    const participantRows: { conversation_id: string; user_id: string }[] = [
-      { conversation_id: newConv.id, user_id: user.id },
+    const participantRows: { conversation_id: string; user_id: string; role?: string }[] = [
+      { conversation_id: newConv.id, user_id: user.id, role: "creator" },
     ];
 
     const safeMemberIds = Array.isArray(memberIds) ? memberIds : [];

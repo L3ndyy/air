@@ -7,6 +7,8 @@ export interface Profile {
   avatar_url: string | null;
   status: string | null;
   updated_at: string;
+  do_not_disturb?: boolean;
+  banned_until?: string | null;
 }
 
 export interface Conversation {
@@ -31,4 +33,13 @@ export interface Message {
   attachment_url: string | null;
   created_at: string;
   is_read: boolean;
+  edited_at: string | null;
+  reply_to_id: string | null;
+  hidden?: boolean;
+}
+
+export interface MessageReaction {
+  message_id: string;
+  user_id: string;
+  emoji: string;
 }

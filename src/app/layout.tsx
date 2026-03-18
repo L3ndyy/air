@@ -12,6 +12,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Air — Мессенджер",
   description: "Самый крутой мессенджер в мире (Да это я сам писал)",
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, title: "Air" },
 };
 
 export default function RootLayout({

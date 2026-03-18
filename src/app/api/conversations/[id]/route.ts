@@ -31,12 +31,16 @@ async function handleUpdateConversation(
   }
   const { data: part } = await admin
     .from("participants")
-    .select("user_id")
+    .select("user_id, role")
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
     .maybeSingle();
   if (!part) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const role = (part as { role?: string }).role ?? "member";
+  if (role !== "creator" && role !== "admin") {
+    return NextResponse.json({ error: "Только создатель или администратор могут менять название и аватар" }, { status: 403 });
   }
   const { error: updateErr } = await admin
     .from("conversations")

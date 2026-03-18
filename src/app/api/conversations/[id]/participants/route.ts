@@ -19,12 +19,40 @@ async function ensureMember(admin: ReturnType<typeof createAdminClient>, convers
   return !!data;
 }
 
+async function handleLeaveGroup(conversationId: string, userId: string) {
+  const admin = getAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "Server not configured" }, { status: 503 });
+  }
+  const isMember = await ensureMember(admin, conversationId, userId);
+  if (!isMember) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const { data: conv } = await admin
+    .from("conversations")
+    .select("type")
+    .eq("id", conversationId)
+    .single();
+  if (!conv || conv.type !== "group") {
+    return NextResponse.json({ error: "Not a group" }, { status: 400 });
+  }
+  const { error: delErr } = await admin
+    .from("participants")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+  if (delErr) {
+    return NextResponse.json({ error: delErr.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
 /**
  * GET /api/conversations/[id]/participants
- * Returns list of participants with profile (id, username, full_name, avatar_url).
+ * Returns list of participants. If ?action=leave, leaves the group (fallback when DELETE is blocked).
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -39,6 +67,10 @@ export async function GET(
       return NextResponse.json({ error: "Conversation id required" }, { status: 400 });
     }
 
+    if (request.nextUrl.searchParams.get("action") === "leave") {
+      return handleLeaveGroup(conversationId, user.id);
+    }
+
     const admin = getAdminClient();
     if (!admin) {
       return NextResponse.json({ error: "Server not configured" }, { status: 503 });
@@ -51,7 +83,7 @@ export async function GET(
 
     const { data: participants } = await admin
       .from("participants")
-      .select("user_id")
+      .select("user_id, role")
       .eq("conversation_id", conversationId);
 
     if (!participants?.length) {
@@ -65,9 +97,10 @@ export async function GET(
       .in("id", userIds);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const list = userIds.map((uid) => ({
-      user_id: uid,
-      ...profileMap.get(uid),
+    const list = participants.map((p) => ({
+      user_id: p.user_id,
+      role: (p as { role?: string }).role ?? "member",
+      ...profileMap.get(p.user_id),
     }));
 
     return NextResponse.json(list);
@@ -105,9 +138,18 @@ export async function POST(
       return NextResponse.json({ error: "Server not configured" }, { status: 503 });
     }
 
-    const isMember = await ensureMember(admin, conversationId, user.id);
-    if (!isMember) {
+    const { data: myPart } = await admin
+      .from("participants")
+      .select("user_id, role")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!myPart) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const role = (myPart as { role?: string }).role ?? "member";
+    if (role !== "creator" && role !== "admin") {
+      return NextResponse.json({ error: "Только создатель или администратор могут добавлять участников" }, { status: 403 });
     }
 
     const { data: conv } = await admin
@@ -159,6 +201,33 @@ export async function POST(
     }
 
     return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/conversations/[id]/participants
+ * Leave the group (remove current user from participants).
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id: conversationId } = await params;
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation id required" }, { status: 400 });
+    }
+    return handleLeaveGroup(conversationId, user.id);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Server error" },

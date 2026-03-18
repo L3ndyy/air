@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { X, LogOut, Lock } from "lucide-react";
+import { X, LogOut, Lock, Moon, Volume2, Headphones } from "lucide-react";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { Button, Input } from "@/components/ui";
@@ -26,7 +26,57 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [updatingDnd, setUpdatingDnd] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("air-sound-enabled") !== "false" : true
+  );
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportText, setSupportText] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportSent, setSupportSent] = useState(false);
   const supabase = createClient();
+
+  async function handleSupportSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = supportText.trim();
+    if (!text) return;
+    setSupportSending(true);
+    try {
+      const res = await fetch("/api/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: text }),
+      });
+      if (res.ok) {
+        setSupportSent(true);
+        setSupportText("");
+        setSupportOpen(false);
+      } else {
+        alert("Не удалось отправить");
+      }
+    } finally {
+      setSupportSending(false);
+    }
+  }
+
+  function toggleSound() {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("air-sound-enabled", next ? "1" : "0");
+    }
+  }
+
+  async function toggleDnd() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !profile) return;
+    setUpdatingDnd(true);
+    const next = !profile.do_not_disturb;
+    await supabase.from("profiles").update({ do_not_disturb: next }).eq("id", user.id);
+    setProfile((prev) => (prev ? { ...prev, do_not_disturb: next } : null));
+    setUpdatingDnd(false);
+  }
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -181,6 +231,45 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   {isOnline ? "в сети" : "не в сети"}
                 </p>
                 <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">Настройте имя, ник и описание</p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Moon className="h-4 w-4 [color:var(--air-text-muted)]" />
+                  <span className="text-sm [color:var(--air-text)]">Не беспокоить</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={profile.do_not_disturb}
+                    disabled={updatingDnd}
+                    onClick={toggleDnd}
+                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      profile.do_not_disturb ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        profile.do_not_disturb ? "left-5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Volume2 className="h-4 w-4 [color:var(--air-text-muted)]" />
+                  <span className="text-sm [color:var(--air-text)]">Звук уведомлений</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={soundEnabled}
+                    onClick={toggleSound}
+                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      soundEnabled ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        soundEnabled ? "left-5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
               <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
                 <ProfileForm
@@ -236,6 +325,15 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   type="button"
                   variant="secondary"
                   className="w-full gap-2"
+                  onClick={() => setSupportOpen(true)}
+                >
+                  <Headphones className="h-4 w-4" />
+                  Написать в поддержку
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-2 w-full gap-2"
                   onClick={handleLogout}
                   disabled={loggingOut}
                 >
@@ -243,6 +341,35 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   {loggingOut ? "Выход…" : "Выйти из аккаунта"}
                 </Button>
               </div>
+              {supportOpen && (
+                <>
+                  <div className="fixed inset-0 z-30 bg-black/30" onClick={() => setSupportOpen(false)} aria-hidden />
+                  <div className="fixed left-1/2 top-1/2 z-40 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] p-6 shadow-xl">
+                    <h3 className="text-lg font-semibold [color:var(--air-text)]">Поддержка</h3>
+                    <p className="mt-1 text-sm [color:var(--air-text-muted)]">Опишите вопрос или проблему</p>
+                    <form onSubmit={handleSupportSubmit} className="mt-4 space-y-3">
+                      <textarea
+                        value={supportText}
+                        onChange={(e) => setSupportText(e.target.value)}
+                        placeholder="Ваше сообщение..."
+                        className="min-h-[120px] w-full resize-none rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        maxLength={2000}
+                      />
+                      <div className="flex gap-2">
+                        <Button type="button" variant="secondary" onClick={() => setSupportOpen(false)}>
+                          Отмена
+                        </Button>
+                        <Button type="submit" disabled={supportSending || !supportText.trim()}>
+                          {supportSending ? "Отправка…" : "Отправить"}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </>
+              )}
+              {supportSent && (
+                <p className="mt-2 text-center text-sm text-emerald-600">Сообщение в поддержку отправлено</p>
+              )}
             </div>
           )}
         </div>

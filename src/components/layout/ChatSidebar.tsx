@@ -39,6 +39,8 @@ interface ChatSidebarProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   profile: Profile | null;
+  onlineUserIds?: Set<string>;
+  loading?: boolean;
   onNewChatClick: () => void;
   className?: string;
 }
@@ -48,6 +50,8 @@ export function ChatSidebar({
   selectedId,
   onSelect,
   profile,
+  onlineUserIds = new Set(),
+  loading = false,
   onNewChatClick,
   className = "",
 }: ChatSidebarProps) {
@@ -113,7 +117,17 @@ export function ChatSidebar({
 
       {/* Chat list with stagger */}
       <ul className="flex-1 overflow-y-auto px-2 py-2">
-        {filtered.map((c, index) => {
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <li key={i} className="mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5">
+              <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[var(--air-glass-border)]" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="h-4 w-24 animate-pulse rounded bg-[var(--air-glass-border)]" />
+                <div className="h-3 w-32 animate-pulse rounded bg-[var(--air-glass-border)]" />
+              </div>
+            </li>
+          ))
+        ) : filtered.map((c, index) => {
           const label =
             c.type === "group"
               ? (c.name ?? "Группа")
@@ -142,12 +156,20 @@ export function ChatSidebar({
                       : "hover:bg-white/50 dark:hover:bg-white/10"
                   } ${isSelected ? "border-l-4 border-l-[var(--air-accent)] pl-[calc(0.75rem-4px)]" : ""}`}
                 >
-                  <Avatar
-                    src={avatarUrl}
-                    fallback={label}
-                    size="sm"
-                    className="h-10 w-10 shrink-0 text-sm"
-                  />
+                  <div className="relative h-10 w-10 shrink-0">
+                    <Avatar
+                      src={avatarUrl}
+                      fallback={label}
+                      size="sm"
+                      className="h-10 w-10 text-sm"
+                    />
+                    {c.type === "direct" && c.otherParticipant?.id && onlineUserIds.has(c.otherParticipant.id) && (
+                      <span
+                        className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[var(--air-surface)] bg-emerald-500"
+                        title="в сети"
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold [color:var(--air-text)]">{label}</p>
                     {c.lastMessage && (

@@ -140,6 +140,11 @@ function LoginForm() {
           <Button type="submit" className="w-full" isLoading={loading}>
             Войти
           </Button>
+          <p className="text-center text-sm [color:var(--air-text-muted)]">
+            <Link href="/forgot-password" className="font-medium text-[var(--air-accent)] hover:opacity-90">
+              Забыли пароль?
+            </Link>
+          </p>
           {(error?.includes("подтвержден") || error?.includes("подтверждения") || searchParams.get("error") === "confirm") && (
             <div className="rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] p-3">
               <p className="mb-2 text-xs [color:var(--air-text-muted)]">

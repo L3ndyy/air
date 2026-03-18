@@ -11,9 +11,10 @@ const EMOJI_PREFIX = "emoji:";
 interface UserProfilePanelProps {
   username: string;
   onClose: () => void;
+  onlineUserIds?: Set<string>;
 }
 
-export function UserProfilePanel({ username, onClose }: UserProfilePanelProps) {
+export function UserProfilePanel({ username, onClose, onlineUserIds = new Set() }: UserProfilePanelProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,6 +141,12 @@ export function UserProfilePanel({ username, onClose }: UserProfilePanelProps) {
               </button>
               <h1 className="mt-4 text-xl font-bold [color:var(--air-text)]">{displayName}</h1>
               <p className="text-sm [color:var(--air-text-muted)]">@{profile.username}</p>
+              {profile.id && onlineUserIds.has(profile.id) && (
+                <p className="mt-1 flex items-center justify-center gap-1.5 text-xs [color:var(--air-text-muted)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  в сети
+                </p>
+              )}
               {profile.status && (
                 <p className="mt-3 max-w-md text-center text-sm leading-relaxed [color:var(--air-text-muted)]">
                   {profile.status}

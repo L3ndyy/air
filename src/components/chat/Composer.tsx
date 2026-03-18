@@ -2,12 +2,20 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send, Paperclip, X, Smile } from "lucide-react";
+import { Send, Paperclip, X, Smile, Reply } from "lucide-react";
 import { Button } from "@/components/ui";
 import { EmojiPicker } from "./EmojiPicker";
 
+export interface ReplyToState {
+  id: string;
+  content: string;
+}
+
 interface ComposerProps {
   conversationId: string;
+  replyTo?: ReplyToState | null;
+  onClearReply?: () => void;
+  isBanned?: boolean;
 }
 
 function getExtension(filename: string): string {
@@ -15,7 +23,7 @@ function getExtension(filename: string): string {
   return i >= 0 ? filename.slice(i) : "";
 }
 
-export function Composer({ conversationId }: ComposerProps) {
+export function Composer({ conversationId, replyTo, onClearReply, isBanned = false }: ComposerProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -95,8 +103,10 @@ export function Composer({ conversationId }: ComposerProps) {
       sender_id: user.id,
       content: text || "",
       attachment_url: attachmentUrl,
+      reply_to_id: replyTo?.id ?? null,
     });
     setContent("");
+    onClearReply?.();
     setSending(false);
     const notifyBody = text?.slice(0, 100) || "Вложение";
     // Для хостингов вроде Onreza, где POST /api может давать 405, используем GET
@@ -106,7 +116,7 @@ export function Composer({ conversationId }: ComposerProps) {
       body: notifyBody,
     });
     fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
-  }, [content, conversationId, pendingFile, sending, supabase]);
+  }, [content, conversationId, pendingFile, replyTo?.id, sending, supabase, onClearReply]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,6 +155,23 @@ export function Composer({ conversationId }: ComposerProps) {
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-glass)] p-3 backdrop-blur-xl">
+      {replyTo && (
+        <div className="flex items-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
+          <Reply className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
+          <span className="min-w-0 flex-1 truncate" title={replyTo.content}>
+            Ответ на: {replyTo.content.trim().slice(0, 60) || "сообщение"}
+            {replyTo.content.trim().length > 60 ? "…" : ""}
+          </span>
+          <button
+            type="button"
+            onClick={onClearReply}
+            className="shrink-0 rounded p-0.5 [color:var(--air-text-muted)] hover:[color:var(--air-text)]"
+            aria-label="Отменить ответ"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {pendingFile && (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
           <Paperclip className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
@@ -197,7 +224,7 @@ export function Composer({ conversationId }: ComposerProps) {
         <textarea
           ref={textareaRef}
           rows={1}
-          placeholder="Сообщение... (Enter — отправить, Shift+Enter — новая строка)"
+          placeholder="Сообщение..."
           value={content}
           onChange={(e) => {
             setContent(e.target.value);
@@ -211,14 +238,14 @@ export function Composer({ conversationId }: ComposerProps) {
             }
           }}
           className="min-h-[40px] max-h-[128px] w-full resize-none overflow-y-auto rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
-          style={{ height: "40px" }}
+          style={{ height: "auto", minHeight: "40px", maxHeight: "128px" }}
         />
         </div>
         <Button
           type="button"
           size="md"
           onClick={send}
-          disabled={!canSend || sending}
+          disabled={!canSend || sending || isBanned}
           className="shrink-0"
         >
           <Send className="h-5 w-5" />

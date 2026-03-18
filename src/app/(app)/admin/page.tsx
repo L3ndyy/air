@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key } from "lucide-react";
+import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface Stats {
   users: { total: number; activeLast24h: number };
+  conversations?: { total: number };
+  messages?: { today: number; week: number };
   server: { uptimeSeconds: number; memoryMB: { rss: number; heapUsed: number } };
   storage: string;
 }
@@ -214,6 +216,31 @@ export default function AdminPage() {
             </p>
           </div>
 
+          {stats.conversations != null && (
+            <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-5 backdrop-blur-xl">
+              <div className="flex items-center gap-2 text-sm [color:var(--air-text-muted)]">
+                <MessageCircle className="h-4 w-4" />
+                Чатов
+              </div>
+              <p className="mt-2 text-2xl font-semibold [color:var(--air-text)]">
+                {stats.conversations.total}
+              </p>
+            </div>
+          )}
+          {stats.messages != null && (
+            <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-5 backdrop-blur-xl">
+              <div className="flex items-center gap-2 text-sm [color:var(--air-text-muted)]">
+                <MessageCircle className="h-4 w-4" />
+                Сообщений
+              </div>
+              <p className="mt-2 text-2xl font-semibold [color:var(--air-text)]">
+                {stats.messages.today} / {stats.messages.week}
+              </p>
+              <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                за день / за неделю
+              </p>
+            </div>
+          )}
           <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-5 backdrop-blur-xl">
             <div className="flex items-center gap-2 text-sm [color:var(--air-text-muted)]">
               <Activity className="h-4 w-4" />
