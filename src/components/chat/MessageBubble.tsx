@@ -41,6 +41,8 @@ interface MessageBubbleProps {
   isOwn: boolean;
   isRead?: boolean;
   showReadStatus?: boolean;
+  isPinned?: boolean;
+  isSelected?: boolean;
   createdAt: string;
   editedAt?: string | null;
   replyToMessage?: ReplyToMessage | null;
@@ -55,6 +57,10 @@ interface MessageBubbleProps {
   searchHighlight?: string;
   onReport?: (messageId: string) => void;
   onMarkRead?: (messageId: string) => void;
+  onToggleSelect?: (id: string) => void;
+  onForward?: (messageIds: string[]) => void;
+  onPinToggle?: (messageId: string) => void;
+  onMentionClick?: (username: string) => void;
 }
 
 function highlightContent(text: string, query: string): React.ReactNode {
@@ -72,7 +78,11 @@ function highlightContent(text: string, query: string): React.ReactNode {
   );
 }
 
-function renderContentWithMentions(text: string, searchHighlight?: string): React.ReactNode {
+function renderContentWithMentions(
+  text: string,
+  searchHighlight?: string,
+  onMentionClick?: (username: string) => void
+): React.ReactNode {
   const mentionRegex = /@(\w+)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -87,10 +97,22 @@ function renderContentWithMentions(text: string, searchHighlight?: string): Reac
         </React.Fragment>
       );
     }
+    const username = match[1];
     parts.push(
-      <span key={key++} className="mention font-medium text-indigo-600 dark:text-indigo-400">
-        @{match[1]}
-      </span>
+      onMentionClick ? (
+        <button
+          key={key++}
+          type="button"
+          onClick={() => onMentionClick(username)}
+          className="mention font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
+          @{username}
+        </button>
+      ) : (
+        <span key={key++} className="mention font-medium text-indigo-600 dark:text-indigo-400">
+          @{username}
+        </span>
+      )
     );
     lastIndex = match.index + match[0].length;
   }
@@ -112,6 +134,8 @@ export function MessageBubble({
   isOwn,
   isRead = false,
   showReadStatus = true,
+  isPinned = false,
+  isSelected = false,
   createdAt,
   editedAt,
   replyToMessage,
@@ -126,12 +150,19 @@ export function MessageBubble({
   searchHighlight,
   onReport,
   onMarkRead,
+  onToggleSelect,
+  onForward,
+  onPinToggle,
+  onMentionClick,
 }: MessageBubbleProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showReactionStrip, setShowReactionStrip] = useState(false);
+  const [reactionStripPos, setReactionStripPos] = useState<{ x: number; y: number } | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const time = new Date(createdAt).toLocaleTimeString("ru-RU", {
     hour: "2-digit",
@@ -149,6 +180,28 @@ export function MessageBubble({
       document.removeEventListener("scroll", close, true);
     };
   }, [contextMenu]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+
+      if (contextMenu) setContextMenu(null);
+      if (editing) setEditing(false);
+      if (showReactionPicker) setShowReactionPicker(false);
+      if (showReactionStrip) {
+        setShowReactionStrip(false);
+        setReactionStripPos(null);
+      }
+
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [contextMenu, editing, showReactionPicker, showReactionStrip]);
 
   useEffect(() => {
     if (editing && editTextareaRef.current) {
@@ -191,12 +244,52 @@ export function MessageBubble({
     }
     setShowReactionPicker(false);
     setContextMenu(null);
+    setShowReactionStrip(false);
+    setReactionStripPos(null);
   }
 
   function handleContextMenu(e: React.MouseEvent) {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }
+
+  function cancelLongPress() {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }
+
+  function startLongPress(e: React.PointerEvent) {
+    if (!onAddReaction && !onRemoveReaction) return;
+    cancelLongPress();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    longPressTimeoutRef.current = setTimeout(() => {
+      setContextMenu(null);
+      setReactionStripPos({ x, y });
+      setShowReactionStrip(true);
+    }, 450);
+  }
+
+  useEffect(() => {
+    if (!showReactionStrip || !reactionStripPos) return;
+    const close = () => {
+      setShowReactionStrip(false);
+      setReactionStripPos(null);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("scroll", close, true);
+    };
+  }, [showReactionStrip, reactionStripPos]);
 
   function copyText() {
     const text = content.trim();
@@ -215,6 +308,10 @@ export function MessageBubble({
         isOwn ? "justify-end" : "justify-start"
       )}
       onContextMenu={handleContextMenu}
+      onPointerDown={startLongPress}
+      onPointerUp={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+      onPointerCancel={cancelLongPress}
     >
       {/* Context menu (right-click) */}
       {contextMenu && (
@@ -250,9 +347,11 @@ export function MessageBubble({
           <button
             type="button"
             role="menuitem"
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              onPinToggle?.(messageId);
+              setContextMenu(null);
+            }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
-            title="Скоро"
           >
             <Pin className="h-4 w-4 shrink-0" />
             Закрепить
@@ -271,9 +370,11 @@ export function MessageBubble({
           <button
             type="button"
             role="menuitem"
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              onForward?.([messageId]);
+              setContextMenu(null);
+            }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
-            title="Скоро"
           >
             <Forward className="h-4 w-4 shrink-0" />
             Переслать
@@ -303,9 +404,11 @@ export function MessageBubble({
           <button
             type="button"
             role="menuitem"
-            onClick={() => setContextMenu(null)}
+            onClick={() => {
+              onToggleSelect?.(messageId);
+              setContextMenu(null);
+            }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
-            title="Скоро"
           >
             <CheckSquare className="h-4 w-4 shrink-0" />
             Выделить
@@ -334,12 +437,45 @@ export function MessageBubble({
           )}
         </div>
       )}
+
+      {showReactionStrip && reactionStripPos && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => {
+              setShowReactionStrip(false);
+              setReactionStripPos(null);
+            }}
+            aria-hidden
+          />
+          <div
+            className="fixed z-50 rounded-full border border-[var(--air-glass-border)] bg-[var(--air-surface)] px-2 py-1 shadow-xl"
+            style={{ left: reactionStripPos.x, top: reactionStripPos.y, transform: "translate(-50%, -100%)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-1">
+              {REACTION_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleReactionClick(emoji)}
+                  className="rounded p-1 text-lg transition hover:bg-[var(--air-input-bg)]"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       <div
         className={cn(
           "group relative max-w-[85%] rounded-[12px] px-3 py-2",
           isOwn
             ? "bg-[var(--tg-bubble-out,var(--air-accent))] text-white air-bubble-out"
-            : "bg-[var(--tg-bubble-in)] border border-[var(--tg-bubble-in-border,var(--air-glass-border))] text-[var(--air-text)] air-bubble-in"
+            : "bg-[var(--tg-bubble-in)] border border-[var(--tg-bubble-in-border,var(--air-glass-border))] text-[var(--air-text)] air-bubble-in",
+          isSelected ? "ring-1 ring-[var(--air-accent)]" : "",
+          isPinned ? "outline outline-1 outline-[var(--air-accent)]/30 outline-offset-0" : ""
         )}
       >
         {/* Reply quote — компактно */}
@@ -421,7 +557,7 @@ export function MessageBubble({
             {content.trim() ? (
               <>
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                  {renderContentWithMentions(content, searchHighlight)}
+                  {renderContentWithMentions(content, searchHighlight, onMentionClick)}
                   <span
                     className={cn(
                       "float-right clear-right ml-1.5 shrink-0 text-[11px]",

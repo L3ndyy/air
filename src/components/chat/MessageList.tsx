@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { MessageBubble, type ReactionSummary } from "./MessageBubble";
-import { MessageCircle, ImageIcon } from "lucide-react";
+import { CheckSquare, Forward as ForwardIcon, ImageIcon, MessageCircle, Pin, X } from "lucide-react";
 import type { Message, MessageReaction } from "@/types/database";
+import type { ConversationItem } from "@/components/layout/ChatSidebar";
 
 const IMAGE_EXTS = /\.(jpe?g|png|gif|webp|svg)(\?|$)/i;
 
@@ -18,6 +19,10 @@ function formatMessageDate(date: Date): string {
   if (d.getTime() === today.getTime()) return "Сегодня";
   if (d.getTime() === yesterday.getTime()) return "Вчера";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
+}
+
+function formatMessageTime(dateIso: string): string {
+  return new Date(dateIso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 function groupMessagesByDate(messages: Message[]): { dateLabel: string; messages: Message[] }[] {
@@ -66,14 +71,49 @@ interface MessageListProps {
   searchQuery?: string;
   onReplyTo?: (message: Message) => void;
   onReport?: (messageId: string) => void;
+  conversationsForForward?: ConversationItem[];
+  onMentionClick?: (username: string) => void;
 }
 
-export function MessageList({ conversationId, currentUserId, searchQuery = "", onReplyTo, onReport }: MessageListProps) {
+export function MessageList({
+  conversationId,
+  currentUserId,
+  searchQuery = "",
+  onReplyTo,
+  onReport,
+  conversationsForForward = [],
+  onMentionClick,
+}: MessageListProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   const [viewMode, setViewMode] = useState<"messages" | "media">("messages");
   const [messagesLoading, setMessagesLoading] = useState(true);
   const supabase = createClient();
+
+  const [pinnedMessageId, setPinnedMessageId] = useState<string | null>(null);
+  const [pinnedAt, setPinnedAt] = useState<string | null>(null);
+
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardTargetId, setForwardTargetId] = useState<string | null>(null);
+  const [forwardMessageIds, setForwardMessageIds] = useState<string[]>([]);
+  const [forwardSending, setForwardSending] = useState(false);
+
+  const [mediaViewer, setMediaViewer] = useState<{ url: string; createdAt: string } | null>(null);
+  const [mediaZoom, setMediaZoom] = useState(1);
+  const [mediaPan, setMediaPan] = useState({ x: 0, y: 0 });
+  const mediaDragRef = useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+
+  const PAGE_SIZE = 30;
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const fetchReactions = useCallback(
     async (messageIds: string[]) => {
@@ -90,18 +130,127 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
     [supabase]
   );
 
+  const fetchPin = useCallback(async () => {
+    const { data } = await supabase
+      .from("conversation_pins")
+      .select("message_id, pinned_at")
+      .eq("conversation_id", conversationId)
+      .maybeSingle();
+    setPinnedMessageId((data as { message_id?: string } | null)?.message_id ?? null);
+    setPinnedAt((data as { pinned_at?: string } | null)?.pinned_at ?? null);
+  }, [supabase, conversationId]);
+
+  function clearSelection() {
+    setSelectedMessageIds(new Set());
+  }
+
+  function toggleSelect(messageId: string) {
+    setSelectedMessageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  }
+
+  function getPreferredForwardTarget(): string | null {
+    const other = conversationsForForward.find((c) => c.id !== conversationId);
+    return other?.id ?? conversationsForForward[0]?.id ?? null;
+  }
+
+  function openForwardModal(messageIds: string[]) {
+    if (!messageIds.length) return;
+    setForwardMessageIds(messageIds);
+    setForwardTargetId(getPreferredForwardTarget());
+    setForwardOpen(true);
+  }
+
+  async function handlePinToggle(messageId: string) {
+    if (pinnedMessageId === messageId) {
+      const { error } = await supabase
+        .from("conversation_pins")
+        .delete()
+        .eq("conversation_id", conversationId);
+      if (!error) {
+        setPinnedMessageId(null);
+        setPinnedAt(null);
+      }
+      return;
+    }
+
+    const { error } = await supabase.from("conversation_pins").upsert(
+      {
+        conversation_id: conversationId,
+        message_id: messageId,
+        pinned_by: currentUserId,
+      },
+      { onConflict: "conversation_id" }
+    );
+    if (!error) {
+      await fetchPin();
+    }
+  }
+
+  async function handleConfirmForward() {
+    if (!forwardTargetId || forwardMessageIds.length === 0) return;
+    const byId = new Map(messages.map((m) => [m.id, m]));
+
+    setForwardSending(true);
+    try {
+      const ids = forwardMessageIds;
+      for (const id of ids) {
+        const msg = byId.get(id);
+        if (!msg) continue;
+
+        const orig = msg.content.trim();
+        const forwardedText = orig ? `Переслано:\n${orig}` : "Переслано: Вложение";
+
+        const { error: insertErr } = await supabase.from("messages").insert({
+          conversation_id: forwardTargetId,
+          sender_id: currentUserId,
+          content: forwardedText,
+          attachment_url: msg.attachment_url,
+          reply_to_id: null,
+        });
+        if (insertErr) {
+          alert(insertErr.message ?? "Не удалось переслать сообщение");
+          return;
+        }
+      }
+
+      setForwardOpen(false);
+      setForwardMessageIds([]);
+      setForwardTargetId(null);
+      clearSelection();
+    } finally {
+      setForwardSending(false);
+    }
+  }
+
   useEffect(() => {
     setMessagesLoading(true);
+    setHasMore(true);
+    setLoadingOlder(false);
+    setSelectedMessageIds(new Set());
     (async () => {
       const { data } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
-      const list = (data ?? []) as Message[];
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+      const listDesc = (data ?? []) as Message[];
+      const list = listDesc.reverse();
+      setHasMore(listDesc.length === PAGE_SIZE);
       setMessages(list);
       await fetchReactions(list.map((m) => m.id));
+      await fetchPin();
       setMessagesLoading(false);
+      requestAnimationFrame(() => {
+        const el = messagesScrollRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+      });
     })();
 
     supabase
@@ -172,11 +321,23 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
       )
       .subscribe();
 
+    const pinChannel = supabase
+      .channel(`pins:${conversationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "conversation_pins", filter: `conversation_id=eq.${conversationId}` },
+        () => {
+          fetchPin();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(reactionChannel);
+      supabase.removeChannel(pinChannel);
     };
-  }, [conversationId, currentUserId, supabase, fetchReactions]);
+  }, [conversationId, currentUserId, supabase, fetchReactions, fetchPin]);
 
   async function handleDeleteMessage(id: string) {
     const { error } = await supabase.from("messages").delete().eq("id", id);
@@ -202,6 +363,103 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
   function handleScrollToMessage(id: string) {
     document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
+  function openMediaViewer(url: string, createdAt: string) {
+    setMediaViewer({ url, createdAt });
+    setMediaZoom(1);
+    setMediaPan({ x: 0, y: 0 });
+    mediaDragRef.current = null;
+  }
+
+  function closeMediaViewer() {
+    setMediaViewer(null);
+    setMediaZoom(1);
+    setMediaPan({ x: 0, y: 0 });
+    mediaDragRef.current = null;
+  }
+
+  const fetchOlderMessages = useCallback(async () => {
+    if (loadingOlder || !hasMore) return;
+    if (searchQuery.trim()) return;
+
+    const oldest = messages[0];
+    if (!oldest) return;
+
+    const el = messagesScrollRef.current;
+    if (!el) return;
+
+    setLoadingOlder(true);
+    const prevScrollHeight = el.scrollHeight;
+    const prevScrollTop = el.scrollTop;
+
+    try {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .lt("created_at", oldest.created_at)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+
+      const olderDesc = (data ?? []) as Message[];
+      if (olderDesc.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      const olderAsc = olderDesc.reverse();
+      if (olderDesc.length < PAGE_SIZE) setHasMore(false);
+
+      setMessages((prev) => [...olderAsc, ...prev]);
+
+      // Reactions храним только для текущего загруженного окна.
+      const combinedIds = [...olderAsc, ...messages].map((m) => m.id);
+      await fetchReactions(combinedIds);
+
+      requestAnimationFrame(() => {
+        const el2 = messagesScrollRef.current;
+        if (!el2) return;
+        const heightDiff = el2.scrollHeight - prevScrollHeight;
+        el2.scrollTop = prevScrollTop + heightDiff;
+      });
+    } catch (e) {
+      // ignore network/rls errors
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [
+    loadingOlder,
+    hasMore,
+    searchQuery,
+    messages,
+    supabase,
+    conversationId,
+    fetchReactions,
+    PAGE_SIZE,
+  ]);
+
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    if (el.scrollTop <= 80) {
+      fetchOlderMessages();
+    }
+  }, [fetchOlderMessages]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (forwardOpen) setForwardOpen(false);
+      if (mediaViewer) {
+        setMediaViewer(null);
+        setMediaZoom(1);
+        setMediaPan({ x: 0, y: 0 });
+        mediaDragRef.current = null;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [forwardOpen, mediaViewer]);
 
   async function handleAddReaction(messageId: string, emoji: string) {
     await supabase.from("message_reactions").insert({ message_id: messageId, user_id: currentUserId, emoji });
@@ -234,6 +492,61 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
     }
   }
 
+  const selectedMessages = useMemo(
+    () => messages.filter((m) => selectedMessageIds.has(m.id)),
+    [messages, selectedMessageIds]
+  );
+
+  const pinnedMessage = useMemo(() => {
+    if (!pinnedMessageId) return null;
+    return messages.find((m) => m.id === pinnedMessageId) ?? null;
+  }, [messages, pinnedMessageId]);
+
+  async function handleBulkCopy() {
+    if (selectedMessages.length === 0) return;
+    const parts = selectedMessages.map((m) => {
+      const t = m.content.trim();
+      if (t) return t;
+      if (m.attachment_url) return "Вложение";
+      return "";
+    });
+    const text = parts.filter(Boolean).join("\n\n---\n\n");
+    if (!text) return;
+    await navigator.clipboard?.writeText(text);
+    clearSelection();
+  }
+
+  function handleBulkReply() {
+    if (!onReplyTo) return;
+    if (selectedMessages.length === 0) return;
+    onReplyTo(selectedMessages[0]);
+    clearSelection();
+  }
+
+  function handleBulkForward() {
+    const ids = Array.from(selectedMessageIds);
+    openForwardModal(ids);
+  }
+
+  async function handleBulkDelete() {
+    if (selectedMessages.length === 0) return;
+    const ids = Array.from(selectedMessageIds);
+    const ownIds = ids.filter((id) => messages.find((m) => m.id === id)?.sender_id === currentUserId);
+    const otherCount = ids.length - ownIds.length;
+    if (ownIds.length === 0) {
+      alert("Можно удалить только свои сообщения");
+      return;
+    }
+    if (otherCount > 0) {
+      alert(`Удалится только ваши сообщения (${ownIds.length}).`);
+    }
+
+    for (const id of ownIds) {
+      await handleDeleteMessage(id);
+    }
+    clearSelection();
+  }
+
   const reactionsByMessage = useMemo(() => buildReactionsByMessage(reactions), [reactions]);
   const filteredMessages = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -256,6 +569,12 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
         .map((m) => ({ ...m, isImage: IMAGE_EXTS.test(m.attachment_url ?? "") })),
     [messages]
   );
+
+  function getConversationLabel(c: ConversationItem): string {
+    return c.type === "group"
+      ? c.name ?? "Группа"
+      : ((c.otherParticipant?.full_name || c.otherParticipant?.username) ?? "Чат");
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -290,28 +609,38 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
           {mediaItems.length === 0 ? (
             <p className="py-8 text-center text-sm [color:var(--air-text-muted)]">Нет вложений</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-2">
               {mediaItems.map((m) => (
-                <a
-                  key={m.id}
-                  href={m.attachment_url!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block overflow-hidden rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)]"
-                >
+                <div key={m.id} className="relative">
                   {m.isImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={m.attachment_url!}
-                      alt="Вложение"
-                      className="aspect-square w-full object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => openMediaViewer(m.attachment_url!, m.created_at)}
+                      className="group block w-full overflow-hidden rounded-xl bg-[var(--air-input-bg)]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={m.attachment_url!}
+                        alt="Вложение"
+                        className="aspect-square w-full object-cover"
+                      />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/40 px-2 py-1 text-center text-[11px] opacity-0 transition group-hover:opacity-100">
+                        {formatMessageTime(m.created_at)}
+                      </div>
+                    </button>
                   ) : (
-                    <div className="flex aspect-square items-center justify-center p-4 text-center text-xs [color:var(--air-text-muted)]">
-                      Файл
-                    </div>
+                    <a
+                      href={m.attachment_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block overflow-hidden rounded-xl bg-[var(--air-input-bg)]"
+                    >
+                      <div className="flex aspect-square items-center justify-center p-4 text-center text-xs [color:var(--air-text-muted)]">
+                        Файл
+                      </div>
+                    </a>
                   )}
-                </a>
+                </div>
               ))}
             </div>
           )}
@@ -331,10 +660,73 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
           ))}
         </div>
       ) : (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div
+      ref={messagesScrollRef}
+      className="flex-1 overflow-y-auto p-4"
+      onScroll={handleMessagesScroll}
+    >
+      {selectedMessageIds.size > 0 && (
+        <div className="sticky top-0 z-20 mb-3 rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] px-3 py-2 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs [color:var(--air-text-muted)]">
+              <CheckSquare className="h-3.5 w-3.5" />
+              Выбрано: {selectedMessageIds.size}
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={handleBulkCopy}
+                className="rounded-xl px-2 py-1 text-xs [color:var(--air-text)] hover:bg-[var(--air-input-bg)]"
+              >
+                Копировать
+              </button>
+              {onReplyTo && (
+                <button
+                  type="button"
+                  onClick={handleBulkReply}
+                  className="rounded-xl px-2 py-1 text-xs [color:var(--air-text)] hover:bg-[var(--air-input-bg)]"
+                >
+                  Ответить
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleBulkForward}
+                className="rounded-xl px-2 py-1 text-xs [color:var(--air-text)] hover:bg-[var(--air-input-bg)]"
+              >
+                Переслать
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-500 hover:bg-red-500/20"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pinnedMessageId && (
+        <div className="mb-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => handleScrollToMessage(pinnedMessageId)}
+            className="inline-flex max-w-full items-center gap-2 rounded-full bg-[var(--air-input-bg)] px-3 py-1.5 text-xs [color:var(--air-text-muted)] hover:[color:var(--air-text)] hover:bg-[var(--air-glass)]"
+          >
+            <Pin className="h-3.5 w-3.5" />
+            <span className="font-medium">Закреплено</span>
+            <span className="truncate opacity-90">
+              {pinnedMessage?.content?.trim() || (pinnedMessage?.attachment_url ? "Вложение" : "Сообщение")}
+            </span>
+          </button>
+        </div>
+      )}
+
       {dateGroups.map((group) => (
         <div key={group.dateLabel} className="space-y-0.5">
-          <div className="flex justify-center py-1">
+          <div className="sticky top-0 z-10 flex justify-center py-1 bg-[var(--air-glass)]/70 backdrop-blur-sm">
             <span className="rounded-full bg-[var(--air-input-bg)] px-3 py-1 text-xs [color:var(--air-text-muted)]">
               {group.dateLabel}
             </span>
@@ -349,6 +741,8 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
               isOwn={msg.sender_id === currentUserId}
               isRead={msg.is_read}
               showReadStatus={msg.sender_id === currentUserId ? msg.id === lastOwnMessageId : undefined}
+              isPinned={msg.id === pinnedMessageId}
+              isSelected={selectedMessageIds.has(msg.id)}
               createdAt={msg.created_at}
               editedAt={msg.edited_at ?? undefined}
               replyToMessage={
@@ -367,15 +761,175 @@ export function MessageList({ conversationId, currentUserId, searchQuery = "", o
               onEdit={handleEditMessage}
               onReply={onReplyTo ? () => onReplyTo(msg) : undefined}
               onScrollToMessage={handleScrollToMessage}
+              onToggleSelect={toggleSelect}
+              onForward={openForwardModal}
+              onPinToggle={handlePinToggle}
               onAddReaction={handleAddReaction}
               onRemoveReaction={handleRemoveReaction}
               onReport={onReport}
               onMarkRead={handleMarkRead}
+              onMentionClick={onMentionClick}
             />
           ))}
         </div>
       ))}
     </div>
+      )}
+      {forwardOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setForwardOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold [color:var(--air-text)]">
+                <ForwardIcon className="h-4 w-4" />
+                Переслать
+              </div>
+              <button
+                type="button"
+                onClick={() => setForwardOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+              Сообщений: {forwardMessageIds.length}
+            </p>
+
+            <div className="mt-3 max-h-[55vh] overflow-y-auto space-y-1">
+              {conversationsForForward.length === 0 ? (
+                <p className="py-4 text-center text-sm [color:var(--air-text-muted)]">Нет доступных чатов</p>
+              ) : (
+                conversationsForForward.map((c) => {
+                  const label = getConversationLabel(c);
+                  const active = c.id === forwardTargetId;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setForwardTargetId(c.id)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                        active
+                          ? "border-[var(--air-accent)] bg-[var(--air-input-bg)]"
+                          : "border-[var(--air-glass-border)] bg-[var(--air-glass)] hover:bg-[var(--air-input-bg)]"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          active ? "bg-[var(--air-accent)]" : "bg-[var(--air-border)]"
+                        }`}
+                      />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setForwardOpen(false)}
+                className="rounded-xl px-3 py-2 text-xs [color:var(--air-text-muted)] hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
+                disabled={forwardSending}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmForward}
+                disabled={!forwardTargetId || forwardSending}
+                className="rounded-xl bg-[var(--air-accent)] px-3 py-2 text-xs text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {forwardSending ? "Пересылаем..." : "Переслать"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mediaViewer && (
+        <div
+          className="fixed inset-0 z-[55] flex items-center justify-center bg-black/70 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          onClick={closeMediaViewer}
+          onWheel={(e) => {
+            e.preventDefault();
+            const step = e.deltaY < 0 ? 0.12 : -0.12;
+            setMediaZoom((z) => {
+              const next = Math.max(1, Math.min(4, z + step));
+              return next;
+            });
+            setMediaPan({ x: 0, y: 0 });
+          }}
+        >
+          <div
+            className="relative h-full w-full p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pointer-events-none absolute left-4 top-4 rounded-xl bg-black/40 px-3 py-1 text-xs [color:var(--air-text)]">
+              {formatMessageTime(mediaViewer.createdAt)}
+            </div>
+            <button
+              type="button"
+              onClick={closeMediaViewer}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 [color:var(--air-text)] transition hover:bg-black/60"
+              aria-label="Закрыть"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex h-full items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mediaViewer.url}
+                alt="Просмотр"
+                draggable={false}
+                className="max-h-[88vh] max-w-[92vw] select-none"
+                style={{
+                  transform: `translate(${mediaPan.x}px, ${mediaPan.y}px) scale(${mediaZoom})`,
+                  transformOrigin: "center center",
+                  transition: mediaDragRef.current ? "none" : "transform 80ms ease-out",
+                  cursor: mediaZoom > 1 ? "grab" : "zoom-in",
+                }}
+                onPointerDown={(e) => {
+                  const target = e.currentTarget;
+                  target.setPointerCapture(e.pointerId);
+                  mediaDragRef.current = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    startPanX: mediaPan.x,
+                    startPanY: mediaPan.y,
+                  };
+                }}
+                onPointerMove={(e) => {
+                  if (!mediaDragRef.current) return;
+                  const dx = e.clientX - mediaDragRef.current.startX;
+                  const dy = e.clientY - mediaDragRef.current.startY;
+                  setMediaPan({
+                    x: mediaDragRef.current.startPanX + dx,
+                    y: mediaDragRef.current.startPanY + dy,
+                  });
+                }}
+                onPointerUp={() => {
+                  mediaDragRef.current = null;
+                }}
+                onPointerCancel={() => {
+                  mediaDragRef.current = null;
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

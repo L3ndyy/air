@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { X, LogOut, Lock, Moon, Volume2, Headphones } from "lucide-react";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { Button, Input } from "@/components/ui";
-import type { Profile } from "@/types/database";
+import type { Profile, Message } from "@/types/database";
 
 interface ProfilePanelProps {
   onClose: () => void;
@@ -30,11 +30,25 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   const [soundEnabled, setSoundEnabled] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("air-sound-enabled") !== "false" : true
   );
+  const [density, setDensity] = useState<"normal" | "compact">(() => {
+    if (typeof window === "undefined") return "normal";
+    return localStorage.getItem("air-density") === "compact" ? "compact" : "normal";
+  });
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportText, setSupportText] = useState("");
   const [supportSending, setSupportSending] = useState(false);
-  const [supportSent, setSupportSent] = useState(false);
+  const [supportConversationId, setSupportConversationId] = useState<string | null>(null);
+  const [supportMessages, setSupportMessages] = useState<Message[]>([]);
+  const [supportLoading, setSupportLoading] = useState(false);
   const supabase = createClient();
+  const supportScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle("density-compact", density === "compact");
+    document.documentElement.classList.toggle("density-normal", density === "normal");
+    localStorage.setItem("air-density", density);
+  }, [density]);
 
   async function handleSupportSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,16 +56,28 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
     if (!text) return;
     setSupportSending(true);
     try {
-      const res = await fetch("/api/support", {
+      // Ensure conversation exists
+      let conversationId = supportConversationId;
+      if (!conversationId) {
+        const ensureRes = await fetch("/api/support/chat/ensure", {
+          method: "POST",
+          credentials: "include",
+        });
+        const ensureData = await ensureRes.json().catch(() => ({}));
+        conversationId = ensureData.conversation_id ?? null;
+        if (!conversationId) throw new Error("Не удалось инициализировать поддержку");
+        setSupportConversationId(conversationId);
+      }
+
+      const res = await fetch("/api/support/chat/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ message: text }),
       });
       if (res.ok) {
-        setSupportSent(true);
         setSupportText("");
-        setSupportOpen(false);
+        // scroll to bottom will happen via effect
       } else {
         alert("Не удалось отправить");
       }
@@ -59,6 +85,86 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
       setSupportSending(false);
     }
   }
+
+  useEffect(() => {
+    if (!supportOpen) return;
+
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      setSupportLoading(true);
+      setSupportConversationId(null);
+      setSupportMessages([]);
+
+      try {
+        const ensureRes = await fetch("/api/support/chat/ensure", {
+          method: "POST",
+          credentials: "include",
+        });
+        const ensureData = await ensureRes.json().catch(() => ({}));
+        const conversationId = ensureData.conversation_id as string | undefined;
+        if (!conversationId || cancelled) return;
+
+        setSupportConversationId(conversationId);
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        const { data } = await supabase
+          .from("messages")
+          .select("id, content, sender_id, created_at, is_read")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(200);
+
+        if (!cancelled) {
+          setSupportMessages((data ?? []) as Message[]);
+        }
+
+        if (user?.id) {
+          await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .eq("conversation_id", conversationId)
+            .neq("sender_id", user.id)
+            .eq("is_read", false);
+        }
+
+        channel = supabase
+          .channel(`support:${conversationId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            (payload) => {
+              setSupportMessages((prev) => [...prev, payload.new as Message]);
+            }
+          )
+          .subscribe();
+      } finally {
+        if (!cancelled) setSupportLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [supportOpen]);
+
+  useEffect(() => {
+    if (!supportOpen) return;
+    requestAnimationFrame(() => {
+      if (!supportScrollRef.current) return;
+      supportScrollRef.current.scrollTop = supportScrollRef.current.scrollHeight;
+    });
+  }, [supportMessages.length, supportOpen]);
 
   function toggleSound() {
     const next = !soundEnabled;
@@ -270,6 +376,28 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                     />
                   </button>
                 </div>
+
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <span className="text-sm [color:var(--air-text)]">Плотность</span>
+                  <span className="text-xs [color:var(--air-text-muted)]">
+                    {density === "compact" ? "Компактно" : "Обычная"}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={density === "compact"}
+                    onClick={() => setDensity((d) => (d === "compact" ? "normal" : "compact"))}
+                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      density === "compact" ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        density === "compact" ? "left-5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
               <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
                 <ProfileForm
@@ -343,32 +471,88 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
               </div>
               {supportOpen && (
                 <>
-                  <div className="fixed inset-0 z-30 bg-black/30" onClick={() => setSupportOpen(false)} aria-hidden />
+                  <div
+                    className="fixed inset-0 z-30 bg-black/30"
+                    onClick={() => {
+                      setSupportOpen(false);
+                      setSupportText("");
+                      setSupportConversationId(null);
+                      setSupportMessages([]);
+                    }}
+                    aria-hidden
+                  />
                   <div className="fixed left-1/2 top-1/2 z-40 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] p-6 shadow-xl">
-                    <h3 className="text-lg font-semibold [color:var(--air-text)]">Поддержка</h3>
-                    <p className="mt-1 text-sm [color:var(--air-text-muted)]">Опишите вопрос или проблему</p>
-                    <form onSubmit={handleSupportSubmit} className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold [color:var(--air-text)]">Поддержка</h3>
+                        <p className="mt-1 text-sm [color:var(--air-text-muted)]">Напишите админам — отвечаем в этом же чате</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSupportOpen(false);
+                          setSupportText("");
+                          setSupportConversationId(null);
+                          setSupportMessages([]);
+                        }}
+                        className="flex h-9 w-9 items-center justify-center rounded-full [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
+                        aria-label="Закрыть поддержку"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div
+                      ref={supportScrollRef}
+                      className="mt-4 max-h-[52vh] overflow-y-auto rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] p-3"
+                    >
+                      {supportLoading ? (
+                        <div className="flex justify-center py-6">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
+                        </div>
+                      ) : supportMessages.length === 0 ? (
+                        <p className="py-6 text-center text-sm [color:var(--air-text-muted)]">Сообщений пока нет</p>
+                      ) : (
+                        supportMessages.map((m) => {
+                          const myId = profile?.id ?? null;
+                          const isOwn = myId && m.sender_id === myId;
+                          const time = new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+                          return (
+                            <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2`}>
+                              <div
+                                className={`max-w-[80%] rounded-[14px] px-3 py-2 ${
+                                  isOwn
+                                    ? "bg-[var(--tg-bubble-out,var(--air-accent))] text-white air-bubble-out"
+                                    : "bg-[var(--tg-bubble-in)] border border-[var(--tg-bubble-in-border,var(--air-glass-border))] text-[var(--air-text)] air-bubble-in"
+                                }`}
+                              >
+                                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                                  {m.content || ""}
+                                </div>
+                                <div className={`mt-1 text-[11px] opacity-70 ${isOwn ? "text-white" : ""}`}>
+                                  {time}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <form onSubmit={handleSupportSubmit} className="mt-3 flex items-end gap-2">
                       <textarea
                         value={supportText}
                         onChange={(e) => setSupportText(e.target.value)}
                         placeholder="Ваше сообщение..."
-                        className="min-h-[120px] w-full resize-none rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="min-h-[40px] max-h-[100px] w-full resize-none rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20"
                         maxLength={2000}
                       />
-                      <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => setSupportOpen(false)}>
-                          Отмена
-                        </Button>
-                        <Button type="submit" disabled={supportSending || !supportText.trim()}>
-                          {supportSending ? "Отправка…" : "Отправить"}
-                        </Button>
-                      </div>
+                      <Button type="submit" disabled={supportSending || !supportText.trim()} className="rounded-[12px] bg-[var(--air-accent)] hover:opacity-90">
+                        {supportSending ? "…" : "Отправить"}
+                      </Button>
                     </form>
                   </div>
                 </>
-              )}
-              {supportSent && (
-                <p className="mt-2 text-center text-sm text-emerald-600">Сообщение в поддержку отправлено</p>
               )}
             </div>
           )}

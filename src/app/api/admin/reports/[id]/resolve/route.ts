@@ -53,6 +53,7 @@ export async function POST(
     }
 
     const messageId = report.message_id as string;
+    const adminId = user.id;
 
     if (action === "dismiss") {
       const { error: delErr } = await admin.from("reports").delete().eq("id", reportId);
@@ -82,6 +83,17 @@ export async function POST(
       }
       const { error: delErr } = await admin.from("reports").delete().eq("id", reportId);
       if (delErr) {}
+      // Write moderation log (best-effort).
+      try {
+        await admin.from("moderation_logs").insert({
+          action: "hide",
+          report_id: reportId,
+          message_id: messageId,
+          target_user_id: msg?.sender_id ?? null,
+          admin_id: adminId,
+          details: null,
+        });
+      } catch {}
       return NextResponse.json({ ok: true, action: "hidden" });
     }
 
@@ -90,6 +102,16 @@ export async function POST(
       if (delMsgErr) {
         return NextResponse.json({ error: delMsgErr.message }, { status: 500 });
       }
+      try {
+        await admin.from("moderation_logs").insert({
+          action: "delete",
+          report_id: reportId,
+          message_id: messageId,
+          target_user_id: msg?.sender_id ?? null,
+          admin_id: adminId,
+          details: null,
+        });
+      } catch {}
       return NextResponse.json({ ok: true, action: "deleted" });
     }
 
@@ -111,6 +133,16 @@ export async function POST(
       if (upErr) {}
       const { error: delErr } = await admin.from("reports").delete().eq("id", reportId);
       if (delErr) {}
+      try {
+        await admin.from("moderation_logs").insert({
+          action: "ban",
+          report_id: reportId,
+          message_id: messageId,
+          target_user_id: msg?.sender_id ?? null,
+          admin_id: adminId,
+          details: { banDays },
+        });
+      } catch {}
       return NextResponse.json({ ok: true, action: "banned", banDays });
     }
 

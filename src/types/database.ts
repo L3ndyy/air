@@ -43,3 +43,10 @@ export interface MessageReaction {
   user_id: string;
   emoji: string;
 }
+
+export interface ConversationPin {
+  conversation_id: string;
+  message_id: string;
+  pinned_by: string;
+  pinned_at: string;
+}

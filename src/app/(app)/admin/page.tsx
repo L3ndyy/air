@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle, Flag, EyeOff, Ban, CheckCircle } from "lucide-react";
@@ -40,6 +40,19 @@ interface AdminReport {
   conversation_id: string | null;
 }
 
+interface ModerationLog {
+  id: string;
+  action: string;
+  report_id: string | null;
+  message_id: string | null;
+  created_at: string;
+  target_username: string | null;
+  target_name: string | null;
+  admin_username: string | null;
+  admin_name: string | null;
+  details: any | null;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
@@ -55,6 +68,17 @@ export default function AdminPage() {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
+  const [supportReplyReportId, setSupportReplyReportId] = useState<string | null>(null);
+  const [supportReplyText, setSupportReplyText] = useState("");
+  const [supportReplySending, setSupportReplySending] = useState(false);
+
+  const [moderationLogs, setModerationLogs] = useState<ModerationLog[]>([]);
+  const [moderationLogsLoading, setModerationLogsLoading] = useState(false);
+
+  const [reasonFilter, setReasonFilter] = useState("");
+  const [chatFilter, setChatFilter] = useState<string>("all");
+  const [authorFilter, setAuthorFilter] = useState("");
+
   useEffect(() => {
     (async () => {
       const checkRes = await fetch("/api/admin/check", { credentials: "include" });
@@ -63,11 +87,12 @@ export default function AdminPage() {
         router.replace("/chat");
         return;
       }
-      const [statsRes, maintRes, usersRes, reportsRes] = await Promise.all([
+      const [statsRes, maintRes, usersRes, reportsRes, logsRes] = await Promise.all([
         fetch("/api/admin/stats", { credentials: "include" }),
         fetch("/api/admin/maintenance", { credentials: "include" }),
         fetch("/api/admin/users", { credentials: "include" }),
         fetch("/api/admin/reports", { credentials: "include" }),
+        fetch("/api/admin/moderation-logs", { credentials: "include" }),
       ]);
       if (!statsRes.ok) {
         setError("Не удалось загрузить статистику");
@@ -89,6 +114,10 @@ export default function AdminPage() {
       if (reportsRes.ok) {
         const reportsData = await reportsRes.json();
         setReports(Array.isArray(reportsData) ? reportsData : []);
+      }
+      if (logsRes.ok) {
+        const logsData = await logsRes.json();
+        setModerationLogs(Array.isArray(logsData) ? logsData : []);
       }
       setLoading(false);
     })();
@@ -155,6 +184,21 @@ export default function AdminPage() {
     }
   }
 
+  async function fetchModerationLogs() {
+    setModerationLogsLoading(true);
+    try {
+      const res = await fetch("/api/admin/moderation-logs", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setModerationLogs(Array.isArray(data) ? data : []);
+      } else {
+        setModerationLogs([]);
+      }
+    } finally {
+      setModerationLogsLoading(false);
+    }
+  }
+
   async function handleResolveReport(reportId: string, action: "dismiss" | "hide" | "delete" | "ban", banDays?: number) {
     const confirmMsg =
       action === "dismiss"
@@ -179,10 +223,57 @@ export default function AdminPage() {
         return;
       }
       await fetchReports();
+      await fetchModerationLogs();
     } finally {
       setResolvingId(null);
     }
   }
+
+  async function handleSendSupportReply(reporterUserId: string, reportId: string) {
+    const text = supportReplyText.trim();
+    if (!text) return;
+    setSupportReplySending(true);
+    try {
+      const res = await fetch("/api/support/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: text, targetUserId: reporterUserId, reportId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Ошибка отправки ответа");
+        return;
+      }
+      setSupportReplyReportId(null);
+      setSupportReplyText("");
+    } finally {
+      setSupportReplySending(false);
+    }
+
+    await fetchModerationLogs();
+  }
+
+  const chatOptions = useMemo(() => {
+    return Array.from(
+      new Set(reports.map((r) => r.conversation_id).filter((x): x is string => Boolean(x)))
+    );
+  }, [reports]);
+
+  const filteredReports = useMemo(() => {
+    const reason = reasonFilter.trim().toLowerCase();
+    const author = authorFilter.trim().toLowerCase();
+
+    return reports.filter((r) => {
+      if (reason && !(r.reason ?? "").toLowerCase().includes(reason)) return false;
+      if (chatFilter !== "all" && r.conversation_id !== chatFilter) return false;
+      if (author) {
+        const hay = `${r.author_username ?? ""} ${r.author_name ?? ""} ${r.author_id ?? ""}`.toLowerCase();
+        if (!hay.includes(author)) return false;
+      }
+      return true;
+    });
+  }, [reports, reasonFilter, chatFilter, authorFilter]);
 
   async function handleSetPassword(u: AdminUser) {
     setPasswordId(u.id);
@@ -409,17 +500,54 @@ export default function AdminPage() {
             Ответ на жалобы: отклонить, скрыть сообщение, удалить сообщение или забанить автора.
           </p>
           <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--air-glass-border)] p-4">
+              <input
+                value={reasonFilter}
+                onChange={(e) => setReasonFilter(e.target.value)}
+                placeholder="Фильтр: причина"
+                className="w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20"
+              />
+              <select
+                value={chatFilter}
+                onChange={(e) => setChatFilter(e.target.value)}
+                className="w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20"
+              >
+                <option value="all">Все чаты</option>
+                {chatOptions.map((id) => (
+                  <option key={id} value={id}>
+                    Chat {id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={authorFilter}
+                onChange={(e) => setAuthorFilter(e.target.value)}
+                placeholder="Фильтр: автор (username/id)"
+                className="w-full rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setReasonFilter("");
+                  setChatFilter("all");
+                  setAuthorFilter("");
+                }}
+                className="rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-xs [color:var(--air-text-muted)] hover:bg-[var(--air-glass)]"
+              >
+                Сбросить
+              </button>
+            </div>
             {reportsLoading ? (
               <div className="flex justify-center py-8">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
               </div>
-            ) : reports.length === 0 ? (
+            ) : filteredReports.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm [color:var(--air-text-muted)]">
                 Нет жалоб
               </div>
             ) : (
               <div className="divide-y divide-[var(--air-glass-border)]">
-                {reports.map((r) => (
+                {filteredReports.map((r) => (
                   <div
                     key={r.id}
                     className="px-4 py-3"
@@ -434,13 +562,17 @@ export default function AdminPage() {
                           {new Date(r.created_at).toLocaleString("ru-RU")}
                           {r.reason && ` · ${r.reason}`}
                         </p>
-                        <p className="mt-1.5 rounded-lg bg-[var(--air-input-bg)] px-2 py-1.5 text-xs [color:var(--air-text)]">
+                    <div className="mt-1.5 whitespace-pre-wrap break-words rounded-lg bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
                           {r.message_content ?? "(пустое сообщение)"}
-                        </p>
+                    </div>
+                    <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                      Сообщение:{" "}
+                      {r.message_created_at ? new Date(r.message_created_at).toLocaleString("ru-RU") : "—"}
+                      {r.message_hidden ? " · скрыто" : ""}
+                    </p>
                         <p className="mt-1 text-xs [color:var(--air-text-muted)]">
                           Автор: @{r.author_username ?? r.author_id?.slice(0, 8)}
                           {r.author_name && ` (${r.author_name})`}
-                          {r.message_hidden && " · сообщение скрыто"}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -484,11 +616,105 @@ export default function AdminPage() {
                           <Ban className="h-3.5 w-3.5" />
                           Бан 1 дн.
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSupportReplyReportId(r.id);
+                            setSupportReplyText("");
+                          }}
+                          disabled={resolvingId !== null || supportReplySending}
+                          className="inline-flex items-center gap-1 rounded-lg border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-2.5 py-1.5 text-xs [color:var(--air-text)] hover:bg-[var(--air-glass)] disabled:opacity-50"
+                          title="Ответить автору жалобы в поддержку"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Ответить
+                        </button>
                       </div>
                     </div>
+                    {supportReplyReportId === r.id && (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={supportReplyText}
+                          onChange={(e) => setSupportReplyText(e.target.value)}
+                          placeholder="Ответ для поддержки…"
+                          className="min-h-[80px] w-full resize-none rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20"
+                          maxLength={2000}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                              setSupportReplyReportId(null);
+                              setSupportReplyText("");
+                            }}
+                            disabled={supportReplySending}
+                            size="sm"
+                          >
+                            Отмена
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleSendSupportReply(r.reporter_id, r.id)}
+                            disabled={supportReplySending || !supportReplyText.trim()}
+                            size="sm"
+                            className="bg-[var(--air-accent)] hover:opacity-90"
+                          >
+                            {supportReplySending ? "Отправка…" : "Отправить"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {resolvingId === r.id && (
                       <div className="mt-2 text-xs [color:var(--air-text-muted)]">Обработка…</div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-10">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold [color:var(--air-text)]">
+            <Activity className="h-5 w-5 text-indigo-500" />
+            Логи модерации
+          </h2>
+          <div className="rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-glass)] overflow-hidden">
+            {moderationLogsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--air-accent)] border-t-transparent" />
+              </div>
+            ) : moderationLogs.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm [color:var(--air-text-muted)]">Пока нет логов</div>
+            ) : (
+              <div className="divide-y divide-[var(--air-glass-border)]">
+                {moderationLogs.map((l) => (
+                  <div key={l.id} className="px-4 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium [color:var(--air-text)]">
+                          {l.action}
+                          {l.report_id ? ` · report ${l.report_id.slice(0, 8)}` : ""}
+                          {l.message_id ? ` · msg ${l.message_id.slice(0, 8)}` : ""}
+                        </p>
+                        <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">
+                          {new Date(l.created_at).toLocaleString("ru-RU")}
+                        </p>
+                        {(l.details as any)?.messagePreview && (
+                          <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                            {(l.details as any).messagePreview}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs [color:var(--air-text-muted)]">
+                          Админ: @{l.admin_username ?? "—"}
+                        </p>
+                        <p className="text-xs [color:var(--air-text-muted)]">
+                          Цель: @{l.target_username ?? "—"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

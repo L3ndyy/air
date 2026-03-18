@@ -106,3 +106,54 @@ textarea:focus-visible {
 .air-bubble-in {
   box-shadow: none;
 }
+
+/* Density theme: compact/normal */
+:root {
+  --air-density-bubble-x: 12px;
+  --air-density-bubble-y: 8px;
+  --air-density-bubble-font: 14px;
+}
+
+.density-compact {
+  --air-density-bubble-x: 10px;
+  --air-density-bubble-y: 6px;
+  --air-density-bubble-font: 13px;
+}
+
+.density-compact .air-bubble-out,
+.density-compact .air-bubble-in {
+  padding-left: var(--air-density-bubble-x) !important;
+  padding-right: var(--air-density-bubble-x) !important;
+  padding-top: var(--air-density-bubble-y) !important;
+  padding-bottom: var(--air-density-bubble-y) !important;
+}
+
+.density-compact .air-bubble-out p,
+.density-compact .air-bubble-in p {
+  font-size: var(--air-density-bubble-font) !important;
+}
+
+.density-compact .air-composer {
+  padding: 0.5rem !important;
+}
+
+.density-compact .air-composer textarea {
+  padding: 0.5rem 0.75rem !important;
+  font-size: var(--air-density-bubble-font) !important;
+}
+
+/* Compact OG link preview */
+.air-og-preview {
+  padding-left: 0;
+  padding-right: 0;
+}
+.density-compact .air-og-preview {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.density-compact .air-og-preview .line-clamp-1 {
+  font-size: 12.5px !important;
+}
+.density-compact .air-og-preview .line-clamp-2 {
+  font-size: 11.5px !important;
+}

@@ -11,6 +11,13 @@ export interface ReplyToState {
   content: string;
 }
 
+interface MentionSuggestion {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 interface ComposerProps {
   conversationId: string;
   replyTo?: ReplyToState | null;
@@ -34,6 +41,13 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null);
+  const mentionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const channel = supabase.channel(`presence:${conversationId}`);
@@ -68,6 +82,37 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
       typingTimeoutRef.current = null;
     }, 2000);
   }, [setTyping]);
+
+  useEffect(() => {
+    if (!mentionOpen || !mentionQuery.trim()) {
+      setMentionSuggestions([]);
+      setMentionIndex(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    mentionAbortRef.current?.abort();
+    mentionAbortRef.current = controller;
+
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?query=${encodeURIComponent(mentionQuery)}`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => []);
+        setMentionSuggestions(Array.isArray(data) ? (data as MentionSuggestion[]) : []);
+        setMentionIndex(0);
+      } catch {
+        // ignore abort/errors
+      }
+    }, 160);
+
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [mentionOpen, mentionQuery]);
 
   const send = useCallback(async () => {
     const text = content.trim();
@@ -140,6 +185,29 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
     }
   }, [content]);
 
+  const insertMention = useCallback((username: string) => {
+    if (!mentionRange) return;
+    const before = content.slice(0, mentionRange.start);
+    const after = content.slice(mentionRange.end);
+    const next = `${before}@${username} ${after}`;
+    const cursorPos = before.length + username.length + 2; // @ + username + space
+
+    setContent(next);
+    setMentionOpen(false);
+    setMentionSuggestions([]);
+    setMentionQuery("");
+    setMentionRange(null);
+    setMentionIndex(0);
+
+    setTimeout(() => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+    onInput();
+  }, [content, mentionRange, onInput]);
+
   const canSend = content.trim() || pendingFile;
 
   const adjustTextareaHeight = useCallback(() => {
@@ -154,7 +222,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
   }, [content, adjustTextareaHeight]);
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-surface)] p-3">
+    <div className="air-composer flex shrink-0 flex-col gap-2 border-t border-[var(--air-glass-border)] bg-[var(--air-surface)] p-3">
       {replyTo && (
         <div className="flex items-center gap-2 rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
           <Reply className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
@@ -227,11 +295,59 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
           placeholder="Сообщение..."
           value={content}
           onChange={(e) => {
-            setContent(e.target.value);
+            const nextValue = e.target.value;
+            const cursor = e.target.selectionStart ?? nextValue.length;
+
+            setContent(nextValue);
             onInput();
+
+            const uptoCursor = nextValue.slice(0, cursor);
+            const match = uptoCursor.match(/@([a-zA-Z0-9_]{1,32})$/);
+            if (!match) {
+              setMentionOpen(false);
+              setMentionSuggestions([]);
+              setMentionQuery("");
+              setMentionRange(null);
+              return;
+            }
+
+            const q = (match[1] ?? "").toLowerCase();
+            const start = cursor - match[0].length;
+            setMentionQuery(q);
+            setMentionOpen(true);
+            setMentionRange({ start, end: cursor });
           }}
           onFocus={onInput}
           onKeyDown={(e) => {
+            if (mentionOpen) {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setMentionOpen(false);
+                setMentionSuggestions([]);
+                setMentionQuery("");
+                setMentionRange(null);
+                return;
+              }
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setMentionIndex((i) => Math.min(i + 1, Math.max(mentionSuggestions.length - 1, 0)));
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setMentionIndex((i) => Math.max(i - 1, 0));
+                return;
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                if (mentionSuggestions.length > 0) {
+                  e.preventDefault();
+                  const chosen = mentionSuggestions[mentionIndex] ?? mentionSuggestions[0];
+                  if (chosen) insertMention(chosen.username);
+                  return;
+                }
+                setMentionOpen(false);
+              }
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               send();
@@ -240,6 +356,32 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
           className="min-h-[40px] max-h-[128px] w-full resize-none overflow-y-auto rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] pl-10 pr-4 py-2 text-sm leading-relaxed [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-[var(--air-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--air-accent)]/20 transition"
           style={{ height: "auto", minHeight: "40px", maxHeight: "128px" }}
         />
+        {mentionOpen && mentionSuggestions.length > 0 && (
+          <div className="absolute left-0 top-full z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] shadow-2xl">
+            {mentionSuggestions.map((p, idx) => {
+              const active = idx === mentionIndex;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => insertMention(p.username)}
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-[var(--air-input-bg)] ${
+                    active ? "bg-[var(--air-input-bg)]" : ""
+                  }`}
+                >
+                  <span className="min-w-0 truncate font-medium">
+                    @{p.username}
+                  </span>
+                  {p.full_name ? (
+                    <span className="min-w-0 truncate text-xs [color:var(--air-text-muted)]">
+                      {p.full_name}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
         </div>
         <Button
           type="button"

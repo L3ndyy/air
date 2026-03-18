@@ -105,6 +105,14 @@ export default function ChatPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    const stored = localStorage.getItem("air-density");
+    const next = stored === "compact" ? "compact" : "normal";
+    document.documentElement.classList.toggle("density-compact", next === "compact");
+    document.documentElement.classList.toggle("density-normal", next === "normal");
+  }, []);
+
+  useEffect(() => {
     setShowNewChatModal((prev) => prev || searchParams.get("new") === "1");
   }, [searchParams]);
 
@@ -271,6 +279,50 @@ export default function ChatPage() {
     if (showProfilePanel) setSidebarOpen(false);
   }, [showProfilePanel]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+
+      if ((e.ctrlKey || e.metaKey) && key === "k") {
+        // Открываем поиск в шапке (ChatHeader сам фокусит input по autoFocus).
+        e.preventDefault();
+        if (!selectedId) return;
+
+        const searchBtn = document.querySelector(
+          'button[aria-label="Поиск по чату"]'
+        ) as HTMLButtonElement | null;
+        searchBtn?.click();
+
+        setTimeout(() => {
+          const input = document.querySelector('header input[type="search"]') as HTMLInputElement | null;
+          input?.focus();
+        }, 0);
+
+        return;
+      }
+
+      if (e.key !== "Escape") return;
+
+      // Закрываем поиск (нужно кликнуть по кнопке, т.к. внутри ChatHeader есть internal state).
+      const closeSearchBtn = document.querySelector(
+        'button[aria-label="Закрыть поиск"]'
+      ) as HTMLButtonElement | null;
+      if (closeSearchBtn) {
+        closeSearchBtn.click();
+      } else {
+        setChatSearch("");
+      }
+
+      if (showProfilePanel) closeProfilePanel();
+      setOtherProfileUsername(null);
+      setShowGroupSettingsPanel(false);
+      setShowNewChatModal(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId, showProfilePanel]);
+
   function closeProfilePanel() {
     router.replace("/chat");
   }
@@ -389,7 +441,9 @@ export default function ChatPage() {
               conversationId={selectedId}
               currentUserId={currentUser?.id ?? ""}
               searchQuery={chatSearch.trim()}
+              conversationsForForward={conversations}
               onReplyTo={(msg) => setReplyTo({ id: msg.id, content: msg.content })}
+              onMentionClick={(username) => setOtherProfileUsername(username)}
               onReport={async (messageId) => {
                 if (!confirm("Отправить жалобу на сообщение?")) return;
                 const res = await fetch("/api/reports", {

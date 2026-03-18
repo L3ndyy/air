@@ -61,7 +61,7 @@ export async function GET() {
           reporter_name: reporter?.full_name ?? null,
           reason: r.reason,
           created_at: r.created_at,
-          message_content: msg?.content?.slice(0, 200) ?? null,
+          message_content: msg?.content ?? null,
           message_created_at: msg?.created_at ?? null,
           message_hidden: msg?.hidden ?? false,
           author_id: msg?.sender_id ?? null,
