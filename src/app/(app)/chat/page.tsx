@@ -351,6 +351,12 @@ export default function ChatPage() {
           refreshConversations();
           if (msg.sender_id !== currentUser.id && msg.conversation_id !== selectedId && !profile?.do_not_disturb) {
             setToast("Новое сообщение");
+            const tauriInvoke = (window as unknown as {
+              __TAURI_INTERNALS__?: { invoke?: (cmd: string, payload?: unknown) => Promise<unknown> };
+            }).__TAURI_INTERNALS__?.invoke;
+            if (tauriInvoke) {
+              tauriInvoke("show_notification", { payload: { title: "Air", body: "Новое сообщение" } }).catch(() => {});
+            }
             if (typeof window !== "undefined" && window.parent !== window) {
               try {
                 window.parent.postMessage(
