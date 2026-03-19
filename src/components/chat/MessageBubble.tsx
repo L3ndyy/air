@@ -160,10 +160,7 @@ export function MessageBubble({
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [showReactionStrip, setShowReactionStrip] = useState(false);
-  const [reactionStripPos, setReactionStripPos] = useState<{ x: number; y: number } | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const time = new Date(createdAt).toLocaleTimeString("ru-RU", {
@@ -179,10 +176,14 @@ export function MessageBubble({
       setContextMenu(null);
       setContextMenuPos(null);
     };
-    document.addEventListener("mousedown", close);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current?.contains(e.target as Node)) return;
+      close();
+    };
+    document.addEventListener("click", handleClickOutside, true);
     document.addEventListener("scroll", close, true);
     return () => {
-      document.removeEventListener("mousedown", close);
+      document.removeEventListener("click", handleClickOutside, true);
       document.removeEventListener("scroll", close, true);
     };
   }, [contextMenu]);
@@ -232,20 +233,11 @@ export function MessageBubble({
       }
       if (editing) setEditing(false);
       if (showReactionPicker) setShowReactionPicker(false);
-      if (showReactionStrip) {
-        setShowReactionStrip(false);
-        setReactionStripPos(null);
-      }
-
-      if (longPressTimeoutRef.current) {
-        clearTimeout(longPressTimeoutRef.current);
-        longPressTimeoutRef.current = null;
-      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [contextMenu, editing, showReactionPicker, showReactionStrip]);
+  }, [contextMenu, editing, showReactionPicker]);
 
   useEffect(() => {
     if (editing && editTextareaRef.current) {
@@ -288,53 +280,13 @@ export function MessageBubble({
     }
     setShowReactionPicker(false);
     setContextMenu(null);
-    setShowReactionStrip(false);
-    setReactionStripPos(null);
   }
 
   function handleContextMenu(e: React.MouseEvent) {
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
     setContextMenuPos(null);
   }
-
-  function cancelLongPress() {
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
-  }
-
-  function startLongPress(e: React.PointerEvent) {
-    if (!onAddReaction && !onRemoveReaction) return;
-    cancelLongPress();
-    const x = e.clientX;
-    const y = e.clientY;
-
-    longPressTimeoutRef.current = setTimeout(() => {
-      setContextMenu(null);
-      setReactionStripPos({ x, y });
-      setShowReactionStrip(true);
-    }, 450);
-  }
-
-  useEffect(() => {
-    if (!showReactionStrip || !reactionStripPos) return;
-    const close = () => {
-      setShowReactionStrip(false);
-      setReactionStripPos(null);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("scroll", close, true);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("scroll", close, true);
-    };
-  }, [showReactionStrip, reactionStripPos]);
 
   function copyText() {
     const text = content.trim();
@@ -353,10 +305,6 @@ export function MessageBubble({
         isOwn ? "justify-end" : "justify-start"
       )}
       onContextMenu={handleContextMenu}
-      onPointerDown={startLongPress}
-      onPointerUp={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onPointerCancel={cancelLongPress}
     >
       {/* Context menu (right-click) */}
       {contextMenu && (
@@ -484,36 +432,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {showReactionStrip && reactionStripPos && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => {
-              setShowReactionStrip(false);
-              setReactionStripPos(null);
-            }}
-            aria-hidden
-          />
-          <div
-            className="fixed z-50 rounded-full border border-[var(--air-glass-border)] bg-[var(--air-surface)] px-2 py-1 shadow-xl"
-            style={{ left: reactionStripPos.x, top: reactionStripPos.y, transform: "translate(-50%, -100%)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-1">
-              {REACTION_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => handleReactionClick(emoji)}
-                  className="rounded p-1 text-lg transition hover:bg-[var(--air-input-bg)]"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
       <div
         className={cn(
           "group relative max-w-[85%] rounded-[12px] px-3 py-2",
