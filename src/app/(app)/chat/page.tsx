@@ -446,14 +446,19 @@ export default function ChatPage() {
               onMentionClick={(username) => setOtherProfileUsername(username)}
               onReport={async (messageId) => {
                 if (!confirm("Отправить жалобу на сообщение?")) return;
-                const res = await fetch("/api/reports", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                  body: JSON.stringify({ messageId }),
-                });
-                if (res.ok) alert("Жалоба отправлена");
-                else alert("Не удалось отправить");
+                try {
+                  const res = await fetch("/api/reports", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ messageId }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (res.ok) alert("Жалоба отправлена");
+                  else alert(data?.error ?? "Не удалось отправить жалобу");
+                } catch {
+                  alert("Не удалось отправить жалобу");
+                }
               }}
             />
             <Composer

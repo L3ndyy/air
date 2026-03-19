@@ -139,7 +139,13 @@ textarea:focus-visible {
 
 .density-compact .air-composer textarea {
   padding: 0.5rem 0.75rem !important;
+  padding-left: 2.25rem !important; /* место под иконку эмодзи, чтобы текст не залезал */
   font-size: var(--air-density-bubble-font) !important;
+}
+
+/* В компактном режиме реакции не налезают на контент сообщения */
+.density-compact .air-bubble-reactions {
+  margin-top: 0.5rem !important;
 }
 
 /* Compact OG link preview */

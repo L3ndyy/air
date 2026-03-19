@@ -304,9 +304,8 @@ export function MessageBubble({
         "flex w-full scroll-mt-4",
         isOwn ? "justify-end" : "justify-start"
       )}
-      onContextMenu={handleContextMenu}
     >
-      {/* Context menu (right-click) */}
+      {/* Context menu (right-click) — только по ПКМ по самому сообщению */}
       {contextMenu && (
         <div
           ref={contextMenuRef}
@@ -433,6 +432,7 @@ export function MessageBubble({
       )}
 
       <div
+        onContextMenu={handleContextMenu}
         className={cn(
           "group relative max-w-[85%] rounded-[12px] px-3 py-2",
           isOwn
@@ -584,7 +584,7 @@ export function MessageBubble({
               )
             )}
             {hasReactions && (
-              <div className="mt-1 flex flex-wrap items-center gap-1">
+              <div className="air-bubble-reactions mt-1 flex flex-wrap items-center gap-1">
                 {reactions.map((r) => (
                   <button
                     key={r.emoji}

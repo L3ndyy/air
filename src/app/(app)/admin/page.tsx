@@ -114,6 +114,9 @@ export default function AdminPage() {
       if (reportsRes.ok) {
         const reportsData = await reportsRes.json();
         setReports(Array.isArray(reportsData) ? reportsData : []);
+      } else if (reportsRes.status === 403) {
+        setReports([]);
+        console.warn("Доступ к жалобам запрещён. Добавьте email в переменную ADMIN_EMAILS.");
       }
       if (logsRes.ok) {
         const logsData = await logsRes.json();
@@ -178,6 +181,8 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json();
         setReports(Array.isArray(data) ? data : []);
+      } else if (res.status === 403) {
+        setReports([]);
       }
     } finally {
       setReportsLoading(false);
@@ -543,7 +548,10 @@ export default function AdminPage() {
               </div>
             ) : filteredReports.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm [color:var(--air-text-muted)]">
-                Нет жалоб
+                <p>Нет жалоб</p>
+                <p className="mt-2 text-xs opacity-80">
+                  Жалобы появляются после нажатия «Пожаловаться» в контекстном меню сообщения. В .env должна быть задана переменная ADMIN_EMAILS с email администратора.
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--air-glass-border)]">
