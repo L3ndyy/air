@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Users, UserPlus, Link2, LogOut, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Users, UserPlus, Link2, LogOut, Trash2, MoreVertical, UserMinus, Shield, User } from "lucide-react";
 import { Avatar, Button, Input } from "@/components/ui";
 import { EMOJI_LIST } from "@/lib/emoji";
 
@@ -53,6 +53,19 @@ export function GroupSettingsPanel({
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [participantMenuUserId, setParticipantMenuUserId] = useState<string | null>(null);
+  const [participantActionLoading, setParticipantActionLoading] = useState(false);
+  const participantMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!participantMenuUserId) return;
+    const close = (e: MouseEvent) => {
+      if (participantMenuRef.current?.contains(e.target as Node)) return;
+      setParticipantMenuUserId(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [participantMenuUserId]);
 
   useEffect(() => {
     setName(initialName);
@@ -186,6 +199,51 @@ export function GroupSettingsPanel({
       }
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleRemoveParticipant(userId: string) {
+    if (!confirm("Исключить участника из группы?")) return;
+    setParticipantActionLoading(true);
+    setParticipantMenuUserId(null);
+    try {
+      const res = await fetch(
+        `/api/conversations/${conversationId}/participants?userId=${encodeURIComponent(userId)}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
+        onUpdated();
+      } else {
+        alert((data.error as string) || "Не удалось исключить");
+      }
+    } finally {
+      setParticipantActionLoading(false);
+    }
+  }
+
+  async function handleSetRole(userId: string, role: "admin" | "member") {
+    setParticipantActionLoading(true);
+    setParticipantMenuUserId(null);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/participants`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId, role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setParticipants((prev) =>
+          prev.map((p) => (p.user_id === userId ? { ...p, role } : p))
+        );
+        onUpdated();
+      } else {
+        alert((data.error as string) || "Не удалось изменить роль");
+      }
+    } finally {
+      setParticipantActionLoading(false);
     }
   }
 
@@ -331,6 +389,48 @@ export function GroupSettingsPanel({
                           @{p.username}
                         </p>
                       </div>
+                      {canManage && p.user_id !== currentUserId && p.role !== "creator" && (
+                        <div className="relative shrink-0" ref={participantMenuUserId === p.user_id ? participantMenuRef : undefined}>
+                          <button
+                            type="button"
+                            onClick={() => setParticipantMenuUserId((id) => (id === p.user_id ? null : p.user_id))}
+                            disabled={participantActionLoading}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)] disabled:opacity-50"
+                            aria-label="Действия"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {participantMenuUserId === p.user_id && (
+                            <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] py-1 shadow-xl [color:var(--air-text)]">
+                              <button
+                                type="button"
+                                onClick={() => handleSetRole(p.user_id, p.role === "admin" ? "member" : "admin")}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
+                              >
+                                {p.role === "admin" ? (
+                                  <>
+                                    <User className="h-4 w-4 shrink-0" />
+                                    Сделать участником
+                                  </>
+                                ) : (
+                                  <>
+                                    <Shield className="h-4 w-4 shrink-0" />
+                                    Сделать админом
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveParticipant(p.user_id)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500/10"
+                              >
+                                <UserMinus className="h-4 w-4 shrink-0" />
+                                Удалить из группы
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

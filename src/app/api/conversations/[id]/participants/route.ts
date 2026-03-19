@@ -210,11 +210,12 @@ export async function POST(
 }
 
 /**
- * DELETE /api/conversations/[id]/participants
- * Leave the group (remove current user from participants).
+ * PATCH /api/conversations/[id]/participants
+ * Body: { userId: string, role: "admin" | "member" }
+ * Change a participant's role. Caller must be creator or admin; cannot change creator.
  */
-export async function DELETE(
-  _request: NextRequest,
+export async function PATCH(
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -226,6 +227,130 @@ export async function DELETE(
     const { id: conversationId } = await params;
     if (!conversationId) {
       return NextResponse.json({ error: "Conversation id required" }, { status: 400 });
+    }
+    const admin = getAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "Server not configured" }, { status: 503 });
+    }
+    const { data: myPart } = await admin
+      .from("participants")
+      .select("user_id, role")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!myPart) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const myRole = (myPart as { role?: string }).role ?? "member";
+    if (myRole !== "creator" && myRole !== "admin") {
+      return NextResponse.json({ error: "Только создатель или администратор могут менять роли" }, { status: 403 });
+    }
+    let body: { userId?: string; role?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
+    const targetUserId = body.userId?.trim();
+    const role = body.role === "admin" ? "admin" : body.role === "member" ? "member" : null;
+    if (!targetUserId || !role) {
+      return NextResponse.json({ error: "Укажите userId и role (admin или member)" }, { status: 400 });
+    }
+    const { data: targetPart } = await admin
+      .from("participants")
+      .select("user_id, role")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+    if (!targetPart) {
+      return NextResponse.json({ error: "Участник не найден" }, { status: 404 });
+    }
+    const targetRole = (targetPart as { role?: string }).role ?? "member";
+    if (targetRole === "creator") {
+      return NextResponse.json({ error: "Нельзя изменить роль создателя" }, { status: 400 });
+    }
+    if (myRole !== "creator" && targetRole === "admin") {
+      return NextResponse.json({ error: "Только создатель может менять роль администратора" }, { status: 403 });
+    }
+    const { error: updateErr } = await admin
+      .from("participants")
+      .update({ role })
+      .eq("conversation_id", conversationId)
+      .eq("user_id", targetUserId);
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/conversations/[id]/participants
+ * Leave the group (remove current user). If ?userId=xxx and caller is creator/admin, remove that user.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id: conversationId } = await params;
+    if (!conversationId) {
+      return NextResponse.json({ error: "Conversation id required" }, { status: 400 });
+    }
+    const targetUserId = request.nextUrl.searchParams.get("userId")?.trim();
+    if (targetUserId && targetUserId !== user.id) {
+      const admin = getAdminClient();
+      if (!admin) {
+        return NextResponse.json({ error: "Server not configured" }, { status: 503 });
+      }
+      const { data: myPart } = await admin
+        .from("participants")
+        .select("role")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!myPart) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const myRole = (myPart as { role?: string }).role ?? "member";
+      if (myRole !== "creator" && myRole !== "admin") {
+        return NextResponse.json({ error: "Только создатель или администратор могут исключать участников" }, { status: 403 });
+      }
+      const { data: targetPart } = await admin
+        .from("participants")
+        .select("role")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      if (!targetPart) {
+        return NextResponse.json({ error: "Участник не найден" }, { status: 404 });
+      }
+      const targetRole = (targetPart as { role?: string }).role ?? "member";
+      if (targetRole === "creator") {
+        return NextResponse.json({ error: "Нельзя исключить создателя" }, { status: 400 });
+      }
+      if (myRole !== "creator" && targetRole === "admin") {
+        return NextResponse.json({ error: "Только создатель может исключить администратора" }, { status: 403 });
+      }
+      const { error: delErr } = await admin
+        .from("participants")
+        .delete()
+        .eq("conversation_id", conversationId)
+        .eq("user_id", targetUserId);
+      if (delErr) {
+        return NextResponse.json({ error: delErr.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
     }
     return handleLeaveGroup(conversationId, user.id);
   } catch (e) {
