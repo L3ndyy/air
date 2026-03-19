@@ -61,6 +61,10 @@ interface MessageBubbleProps {
   onForward?: (messageIds: string[]) => void;
   onPinToggle?: (messageId: string) => void;
   onMentionClick?: (username: string) => void;
+  contextMenuOpen?: boolean;
+  contextMenuPosition?: { x: number; y: number } | null;
+  onOpenContextMenu?: (x: number, y: number) => void;
+  onCloseContextMenu?: () => void;
 }
 
 function highlightContent(text: string, query: string): React.ReactNode {
@@ -154,9 +158,12 @@ export function MessageBubble({
   onForward,
   onPinToggle,
   onMentionClick,
+  contextMenuOpen = false,
+  contextMenuPosition = null,
+  onOpenContextMenu,
+  onCloseContextMenu,
 }: MessageBubbleProps) {
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const [contextMenuPos, setContextMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const [contextMenuAdjustedPos, setContextMenuAdjustedPos] = useState<{ left: number; top: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -171,73 +178,54 @@ export function MessageBubble({
   const isImageOnlyAttachment = Boolean(attachmentUrl && isImage && !content.trim());
 
   useEffect(() => {
-    if (!contextMenu) return;
-    const close = () => {
-      setContextMenu(null);
-      setContextMenuPos(null);
-    };
+    if (!contextMenuOpen || !contextMenuPosition) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (contextMenuRef.current?.contains(e.target as Node)) return;
-      close();
+      onCloseContextMenu?.();
     };
+    const handleScroll = () => onCloseContextMenu?.();
     document.addEventListener("click", handleClickOutside, true);
-    document.addEventListener("scroll", close, true);
+    document.addEventListener("scroll", handleScroll, true);
     return () => {
       document.removeEventListener("click", handleClickOutside, true);
-      document.removeEventListener("scroll", close, true);
+      document.removeEventListener("scroll", handleScroll, true);
     };
-  }, [contextMenu]);
+  }, [contextMenuOpen, contextMenuPosition, onCloseContextMenu]);
 
   useEffect(() => {
-    if (!contextMenu) return;
-
-    // Measure and adjust menu position so it never overflows the viewport.
+    if (!contextMenuOpen || !contextMenuPosition) {
+      setContextMenuAdjustedPos(null);
+      return;
+    }
+    setContextMenuAdjustedPos(null);
     const raf = requestAnimationFrame(() => {
       const el = contextMenuRef.current;
       if (!el) return;
-
       const margin = 8;
       const rect = el.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-
-      let left = contextMenu.x;
-      let top = contextMenu.y;
-
-      // If overflowing right edge, position to the left of the cursor.
-      if (left + rect.width + margin > vw) {
-        left = contextMenu.x - rect.width;
-      }
-      // If overflowing bottom edge, position above the cursor.
-      if (top + rect.height + margin > vh) {
-        top = contextMenu.y - rect.height;
-      }
-
-      // Clamp to safe bounds.
+      let left = contextMenuPosition.x;
+      let top = contextMenuPosition.y;
+      if (left + rect.width + margin > vw) left = contextMenuPosition.x - rect.width;
+      if (top + rect.height + margin > vh) top = contextMenuPosition.y - rect.height;
       left = Math.max(margin, Math.min(left, vw - rect.width - margin));
       top = Math.max(margin, Math.min(top, vh - rect.height - margin));
-
-      setContextMenuPos({ left, top });
+      setContextMenuAdjustedPos({ left, top });
     });
-
     return () => cancelAnimationFrame(raf);
-  }, [contextMenu]);
+  }, [contextMenuOpen, contextMenuPosition]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-
-      if (contextMenu) {
-        setContextMenu(null);
-        setContextMenuPos(null);
-      }
+      if (contextMenuOpen) onCloseContextMenu?.();
       if (editing) setEditing(false);
       if (showReactionPicker) setShowReactionPicker(false);
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [contextMenu, editing, showReactionPicker]);
+  }, [contextMenuOpen, editing, showReactionPicker, onCloseContextMenu]);
 
   useEffect(() => {
     if (editing && editTextareaRef.current) {
@@ -279,19 +267,18 @@ export function MessageBubble({
       onAddReaction(messageId, emoji);
     }
     setShowReactionPicker(false);
-    setContextMenu(null);
+    onCloseContextMenu?.();
   }
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
-    setContextMenuPos(null);
+    onOpenContextMenu?.(e.clientX, e.clientY);
   }
 
   function copyText() {
     const text = content.trim();
     if (text) navigator.clipboard?.writeText(text);
-    setContextMenu(null);
+    onCloseContextMenu?.();
   }
 
   const hasReactions = reactions.length > 0;
@@ -305,12 +292,16 @@ export function MessageBubble({
         isOwn ? "justify-end" : "justify-start"
       )}
     >
-      {/* Context menu (right-click) — только по ПКМ по самому сообщению */}
-      {contextMenu && (
+      {/* Context menu (right-click) — только по ПКМ по самому сообщению; одно меню на весь список */}
+      {contextMenuOpen && contextMenuPosition && (
         <div
           ref={contextMenuRef}
           className="fixed z-50 min-w-[200px] rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] py-1.5 shadow-xl [color:var(--air-text)]"
-          style={contextMenuPos ? { left: contextMenuPos.left, top: contextMenuPos.top } : { left: contextMenu.x, top: contextMenu.y }}
+          style={
+            contextMenuAdjustedPos
+              ? { left: contextMenuAdjustedPos.left, top: contextMenuAdjustedPos.top }
+              : { left: contextMenuPosition.x, top: contextMenuPosition.y }
+          }
           role="menu"
         >
           <div className="flex flex-wrap gap-1 border-b border-[var(--air-glass-border)] px-2 pb-2">
@@ -330,7 +321,7 @@ export function MessageBubble({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { onReply(); setContextMenu(null); }}
+              onClick={() => { onReply(); onCloseContextMenu?.(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
             >
               <Reply className="h-4 w-4 shrink-0" />
@@ -340,10 +331,10 @@ export function MessageBubble({
           <button
             type="button"
             role="menuitem"
-            onClick={() => {
-              onPinToggle?.(messageId);
-              setContextMenu(null);
-            }}
+              onClick={() => {
+                onPinToggle?.(messageId);
+                onCloseContextMenu?.();
+              }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
           >
             <Pin className="h-4 w-4 shrink-0" />
@@ -365,7 +356,7 @@ export function MessageBubble({
             role="menuitem"
             onClick={() => {
               onForward?.([messageId]);
-              setContextMenu(null);
+              onCloseContextMenu?.();
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
           >
@@ -376,7 +367,7 @@ export function MessageBubble({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { startEdit(); setContextMenu(null); }}
+              onClick={() => { startEdit(); onCloseContextMenu?.(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
             >
               <Pencil className="h-4 w-4 shrink-0" />
@@ -387,7 +378,7 @@ export function MessageBubble({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { handleDelete(); setContextMenu(null); }}
+              onClick={() => { handleDelete(); onCloseContextMenu?.(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500/10"
             >
               <Trash2 className="h-4 w-4 shrink-0" />
@@ -399,7 +390,7 @@ export function MessageBubble({
             role="menuitem"
             onClick={() => {
               onToggleSelect?.(messageId);
-              setContextMenu(null);
+              onCloseContextMenu?.();
             }}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
           >
@@ -410,7 +401,7 @@ export function MessageBubble({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { onMarkRead(messageId); setContextMenu(null); }}
+              onClick={() => { onMarkRead(messageId); onCloseContextMenu?.(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--air-input-bg)]"
             >
               <Eye className="h-4 w-4 shrink-0" />
@@ -421,7 +412,7 @@ export function MessageBubble({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { onReport(messageId); setContextMenu(null); }}
+              onClick={() => { onReport(messageId); onCloseContextMenu?.(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-amber-600 hover:bg-amber-500/10"
             >
               <Flag className="h-4 w-4 shrink-0" />

@@ -243,14 +243,17 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
       {pendingFile && (
         <div className="flex items-center gap-2 rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] px-3 py-2 text-sm [color:var(--air-text)]">
           <Paperclip className="h-4 w-4 shrink-0 [color:var(--air-text-muted)]" />
-          <span className="min-w-0 truncate">{pendingFile.name}</span>
+          <span className="min-w-0 flex-1 truncate" title={pendingFile.name}>
+            {pendingFile.name}
+          </span>
           <button
             type="button"
             onClick={() => setPendingFile(null)}
-            className="shrink-0 rounded p-0.5 [color:var(--air-text-muted)] hover:[color:var(--air-text)]"
+            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs [color:var(--air-text-muted)] transition hover:bg-[var(--air-glass)] hover:[color:var(--air-text)]"
             aria-label="Убрать файл"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
+            Очистить
           </button>
         </div>
       )}
@@ -262,7 +265,7 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar,.7z,.tar,.gz,.bz2,application/zip,application/x-rar-compressed,application/x-7z-compressed,application/gzip,application/x-tar"
           onChange={onFileChange}
         />
         <button

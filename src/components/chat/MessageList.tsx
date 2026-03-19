@@ -98,6 +98,9 @@ export function MessageList({
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardTargetId, setForwardTargetId] = useState<string | null>(null);
   const [forwardMessageIds, setForwardMessageIds] = useState<string[]>([]);
+
+  const [openContextMenuMessageId, setOpenContextMenuMessageId] = useState<string | null>(null);
+  const [openContextMenuPosition, setOpenContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [forwardSending, setForwardSending] = useState(false);
 
   const [mediaViewer, setMediaViewer] = useState<{ url: string; createdAt: string } | null>(null);
@@ -272,11 +275,23 @@ export function MessageList({
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
+          const newMsg = payload.new as Message;
           setMessages((prev) => {
-            const next = [...prev, payload.new as Message];
+            const next = [...prev, newMsg];
             fetchReactions(next.map((m) => m.id));
             return next;
           });
+          if (newMsg.sender_id !== currentUserId) {
+            supabase
+              .from("messages")
+              .update({ is_read: true })
+              .eq("id", newMsg.id)
+              .then(() => {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === newMsg.id ? { ...m, is_read: true } : m))
+                );
+              });
+          }
         }
       )
       .on(
@@ -339,7 +354,21 @@ export function MessageList({
     };
   }, [conversationId, currentUserId, supabase, fetchReactions, fetchPin]);
 
+  function getStoragePathFromUrl(url: string): string | null {
+    const marker = "chat-files/";
+    const i = url.indexOf(marker);
+    if (i === -1) return null;
+    return url.slice(i + marker.length);
+  }
+
   async function handleDeleteMessage(id: string) {
+    const msg = messages.find((m) => m.id === id);
+    if (msg?.attachment_url) {
+      const path = getStoragePathFromUrl(msg.attachment_url);
+      if (path) {
+        await supabase.storage.from("chat-files").remove([path]);
+      }
+    }
     const { error } = await supabase.from("messages").delete().eq("id", id);
     if (!error) setMessages((prev) => prev.filter((m) => m.id !== id));
   }
@@ -757,6 +786,16 @@ export function MessageList({
               }
               reactions={reactionsByMessage[msg.id]}
               currentUserId={currentUserId}
+              contextMenuOpen={openContextMenuMessageId === msg.id}
+              contextMenuPosition={openContextMenuMessageId === msg.id ? openContextMenuPosition : null}
+              onOpenContextMenu={(x, y) => {
+                setOpenContextMenuMessageId(msg.id);
+                setOpenContextMenuPosition({ x, y });
+              }}
+              onCloseContextMenu={() => {
+                setOpenContextMenuMessageId(null);
+                setOpenContextMenuPosition(null);
+              }}
               onDelete={handleDeleteMessage}
               onEdit={handleEditMessage}
               onReply={onReplyTo ? () => onReplyTo(msg) : undefined}

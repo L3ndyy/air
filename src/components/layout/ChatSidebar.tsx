@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MessageCircle, User, Plus, Search, Shield } from "lucide-react";
@@ -42,6 +42,7 @@ interface ChatSidebarProps {
   onlineUserIds?: Set<string>;
   loading?: boolean;
   onNewChatClick: () => void;
+  onStartChatWithUsername?: (username: string) => void;
   className?: string;
 }
 
@@ -53,18 +54,54 @@ export function ChatSidebar({
   onlineUserIds = new Set(),
   loading = false,
   onNewChatClick,
+  onStartChatWithUsername,
   className = "",
 }: ChatSidebarProps) {
   const [search, setSearch] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userSearchResults, setUserSearchResults] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
   const searchParams = useSearchParams();
   const isProfileOpen = searchParams.get("panel") === "profile";
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/check", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setIsAdmin(!!d.admin))
       .catch(() => setIsAdmin(false));
+  }, []);
+
+  useEffect(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setUserSearchLoading(true);
+      fetch(`/api/users/search?query=${encodeURIComponent(q)}`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((data) => {
+          setUserSearchResults(Array.isArray(data) ? data : []);
+        })
+        .catch(() => setUserSearchResults([]))
+        .finally(() => setUserSearchLoading(false));
+    }, 300);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [search]);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (searchContainerRef.current?.contains(e.target as Node)) return;
+      setUserSearchResults([]);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
   const filtered = useMemo(() => {
@@ -91,15 +128,48 @@ export function ChatSidebar({
           </div>
           <span className="font-semibold [color:var(--air-text)]">Air</span>
         </div>
-        <div className="relative mt-3">
+        <div className="relative mt-3" ref={searchContainerRef}>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 [color:var(--air-text-muted)]" />
           <input
             type="text"
-            placeholder="Поиск"
+            placeholder="Поиск чатов и пользователей"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-[12px] border border-[var(--air-glass-border)] bg-[var(--air-input-bg)] py-2 pl-9 pr-3 text-sm [color:var(--air-text)] placeholder:[color:var(--air-text-muted)] focus:border-[var(--air-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--air-accent)]/30 transition"
           />
+          {search.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--air-glass-border)] bg-[var(--air-surface)] shadow-xl">
+              {userSearchLoading ? (
+                <div className="px-3 py-4 text-center text-xs [color:var(--air-text-muted)]">Поиск…</div>
+              ) : userSearchResults.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs [color:var(--air-text-muted)]">Нет пользователей по запросу</div>
+              ) : (
+                <ul className="py-1">
+                  {userSearchResults
+                    .filter((u) => u.id !== profile?.id)
+                    .map((u) => (
+                      <li key={u.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onStartChatWithUsername?.(u.username);
+                            setSearch("");
+                            setUserSearchResults([]);
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition hover:bg-[var(--air-input-bg)] [color:var(--air-text)]"
+                        >
+                          <Avatar src={u.avatar_url} fallback={u.full_name || u.username} size="sm" className="h-9 w-9" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">@{u.username}</p>
+                            {u.full_name && <p className="truncate text-xs [color:var(--air-text-muted)]">{u.full_name}</p>}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

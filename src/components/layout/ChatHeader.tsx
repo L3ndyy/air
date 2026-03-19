@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Settings, Search, X, Phone } from "lucide-react";
+import { ArrowLeft, Settings, Search, X, Phone, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui";
 
 interface ChatHeaderProps {
@@ -16,6 +16,7 @@ interface ChatHeaderProps {
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   onClearSearch?: () => void;
+  onClearChat?: () => void;
 }
 
 export function ChatHeader({
@@ -30,6 +31,7 @@ export function ChatHeader({
   searchValue = "",
   onSearchChange,
   onClearSearch,
+  onClearChat,
 }: ChatHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const showSearch = searchOpen || (onSearchChange && searchValue.trim() !== "");
@@ -113,6 +115,17 @@ export function ChatHeader({
           aria-label="Поиск по чату"
         >
           <Search className="h-5 w-5" />
+        </button>
+      )}
+      {!showSearch && onClearChat && (
+        <button
+          type="button"
+          onClick={onClearChat}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] [color:var(--air-text-muted)] transition hover:bg-red-500/10 hover:text-red-500"
+          aria-label="Очистить чат"
+          title="Очистить чат"
+        >
+          <Trash2 className="h-5 w-5" />
         </button>
       )}
       {isGroup && onOpenGroupSettings && !showSearch && (

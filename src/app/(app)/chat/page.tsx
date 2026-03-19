@@ -274,6 +274,8 @@ export default function ChatPage() {
   const [otherProfileUsername, setOtherProfileUsername] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
   const [chatSearch, setChatSearch] = useState("");
+  const [clearChatKey, setClearChatKey] = useState(0);
+  const [clearingChat, setClearingChat] = useState(false);
 
   useEffect(() => {
     if (showProfilePanel) setSidebarOpen(false);
@@ -397,6 +399,10 @@ export default function ChatPage() {
         onlineUserIds={onlineUserIds}
         loading={conversationsLoading}
         onNewChatClick={() => setShowNewChatModal(true)}
+        onStartChatWithUsername={(username) => {
+          setNewChatUsername(username);
+          setShowNewChatModal(true);
+        }}
         className={cn(
           "fixed inset-y-0 left-0 z-40 transition-transform duration-300 ease-out md:relative md:z-auto",
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
@@ -436,8 +442,32 @@ export default function ChatPage() {
               searchValue={chatSearch}
               onSearchChange={setChatSearch}
               onClearSearch={() => setChatSearch("")}
+              onClearChat={
+                selectedId && !clearingChat
+                  ? async () => {
+                      if (!confirm("Очистить весь чат? Все сообщения и вложения будут удалены. Это нельзя отменить.")) return;
+                      setClearingChat(true);
+                      try {
+                        const res = await fetch(`/api/conversations/${selectedId}/clear`, {
+                          method: "POST",
+                          credentials: "include",
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok) {
+                          setClearChatKey((k) => k + 1);
+                          refreshConversations();
+                        } else {
+                          alert((data.error as string) || "Не удалось очистить чат");
+                        }
+                      } finally {
+                        setClearingChat(false);
+                      }
+                    }
+                  : undefined
+              }
             />
             <MessageList
+              key={`${selectedId}-${clearChatKey}`}
               conversationId={selectedId}
               currentUserId={currentUser?.id ?? ""}
               searchQuery={chatSearch.trim()}
