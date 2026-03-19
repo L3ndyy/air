@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MessageCircle, User, Plus, Search, Shield } from "lucide-react";
 import { motion } from "framer-motion";
-import { Avatar } from "@/components/ui";
+import { Avatar, PremiumBadge } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import type { Profile } from "@/types/database";
 
@@ -241,7 +241,12 @@ export function ChatSidebar({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold [color:var(--air-text)]">{label}</p>
+                    <p className="flex items-center gap-1.5 truncate font-semibold [color:var(--air-text)]">
+                      <span className="truncate">{label}</span>
+                      {c.type === "direct" && c.otherParticipant?.is_premium && (
+                        <PremiumBadge className="shrink-0" />
+                      )}
+                    </p>
                     {c.lastMessage && (
                       <p className="truncate text-xs text-air-muted">{c.lastMessage.content}</p>
                     )}

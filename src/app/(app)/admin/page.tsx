@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle, Flag, EyeOff, Ban, CheckCircle } from "lucide-react";
+import { Shield, Users, Activity, HardDrive, Zap, ArrowLeft, Wrench, Trash2, Key, MessageCircle, Flag, EyeOff, Ban, CheckCircle, Crown } from "lucide-react";
 import { Button } from "@/components/ui";
 
 interface Stats {
@@ -21,6 +21,7 @@ interface AdminUser {
   email_confirmed_at: string | null;
   username: string | null;
   full_name: string | null;
+  is_premium?: boolean;
 }
 
 interface AdminReport {
@@ -64,6 +65,7 @@ export default function AdminPage() {
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [passwordId, setPasswordId] = useState<string | null>(null);
+  const [premiumTogglingId, setPremiumTogglingId] = useState<string | null>(null);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -301,6 +303,28 @@ export default function AdminPage() {
     }
   }
 
+  async function handleTogglePremium(u: AdminUser) {
+    setPremiumTogglingId(u.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "set_premium", userId: u.id, is_premium: !u.is_premium }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? "Ошибка");
+        return;
+      }
+      setAdminUsers((prev) =>
+        prev.map((x) => (x.id === u.id ? { ...x, is_premium: !x.is_premium } : x))
+      );
+    } finally {
+      setPremiumTogglingId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -460,14 +484,33 @@ export default function AdminPage() {
                     className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium [color:var(--air-text)]">
+                      <p className="truncate font-medium [color:var(--air-text)] flex items-center gap-1.5">
                         {u.email || "—"}
+                        {u.is_premium && (
+                          <span title="Премиум" className="shrink-0">
+                            <Crown className="h-3.5 w-3.5 text-amber-500" />
+                          </span>
+                        )}
                       </p>
                       <p className="truncate text-xs [color:var(--air-text-muted)]">
                         @{u.username ?? "user"} · {u.full_name || "—"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePremium(u)}
+                        disabled={premiumTogglingId !== null}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs disabled:opacity-50 ${
+                          u.is_premium
+                            ? "border-amber-500/50 bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                            : "border-[var(--air-glass-border)] bg-[var(--air-input-bg)] [color:var(--air-text)] hover:bg-[var(--air-glass)]"
+                        }`}
+                        title={u.is_premium ? "Отозвать премиум" : "Выдать премиум"}
+                      >
+                        <Crown className="h-3.5 w-3.5" />
+                        {premiumTogglingId === u.id ? "…" : u.is_premium ? "Премиум ✓" : "Премиум"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleSetPassword(u)}

@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { X, LogOut, Lock, Moon, Volume2, Headphones, Download } from "lucide-react";
+import { X, LogOut, Lock, Moon, Volume2, Headphones, Download, Crown } from "lucide-react";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, PremiumBadge } from "@/components/ui";
 import type { Profile, Message } from "@/types/database";
 
 interface ProfilePanelProps {
@@ -41,6 +41,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   const [supportMessages, setSupportMessages] = useState<Message[]>([]);
   const [supportLoading, setSupportLoading] = useState(false);
   const [isDesktopApp, setIsDesktopApp] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
   const supabase = createClient();
   const supportScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -336,7 +337,10 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   onUpload={handleAvatarUpload}
                   onEmojiSelect={handleEmojiSelect}
                 />
-                <h1 className="mt-4 text-xl font-semibold [color:var(--air-text)]">Профиль</h1>
+                <h1 className="mt-4 flex items-center justify-center gap-2 text-xl font-semibold [color:var(--air-text)]">
+                  Профиль
+                  {profile.is_premium && <PremiumBadge size="md" />}
+                </h1>
                 <p className="mt-1 flex items-center gap-1.5 text-sm [color:var(--air-text-muted)]">
                   <span
                     className={`inline-block h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-[var(--air-border)]"}`}
@@ -344,67 +348,69 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   />
                   {isOnline ? "в сети" : "не в сети"}
                 </p>
-                <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">Настройте имя, ник и описание</p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <Moon className="h-4 w-4 [color:var(--air-text-muted)]" />
-                  <span className="text-sm [color:var(--air-text)]">Не беспокоить</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={profile.do_not_disturb}
-                    disabled={updatingDnd}
-                    onClick={toggleDnd}
-                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      profile.do_not_disturb ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        profile.do_not_disturb ? "left-5" : "left-0.5"
+                <p className="mt-0.5 text-xs [color:var(--air-text-muted)]">Имя, ник, описание</p>
+                <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl bg-[var(--air-input-bg)]/50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4 [color:var(--air-text-muted)]" />
+                      <span className="text-sm [color:var(--air-text)]">Не беспокоить</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={profile.do_not_disturb}
+                      disabled={updatingDnd}
+                      onClick={toggleDnd}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition focus:outline-none ${
+                        profile.do_not_disturb ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
                       }`}
-                    />
-                  </button>
-                </div>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <Volume2 className="h-4 w-4 [color:var(--air-text-muted)]" />
-                  <span className="text-sm [color:var(--air-text)]">Звук уведомлений</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={soundEnabled}
-                    onClick={toggleSound}
-                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      soundEnabled ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        soundEnabled ? "left-5" : "left-0.5"
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          profile.do_not_disturb ? "left-4" : "left-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="h-4 w-4 [color:var(--air-text-muted)]" />
+                      <span className="text-sm [color:var(--air-text)]">Звук</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={soundEnabled}
+                      onClick={toggleSound}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition focus:outline-none ${
+                        soundEnabled ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
                       }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <span className="text-sm [color:var(--air-text)]">Плотность</span>
-                  <span className="text-xs [color:var(--air-text-muted)]">
-                    {density === "compact" ? "Компактно" : "Обычная"}
-                  </span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={density === "compact"}
-                    onClick={() => setDensity((d) => (d === "compact" ? "normal" : "compact"))}
-                    className={`relative h-6 w-10 shrink-0 rounded-full transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      density === "compact" ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        density === "compact" ? "left-5" : "left-0.5"
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          soundEnabled ? "left-4" : "left-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm [color:var(--air-text)]">Плотность</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={density === "compact"}
+                      onClick={() => setDensity((d) => (d === "compact" ? "normal" : "compact"))}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition focus:outline-none ${
+                        density === "compact" ? "bg-indigo-500" : "bg-[var(--air-glass-border)]"
                       }`}
-                    />
-                  </button>
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          density === "compact" ? "left-4" : "left-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
@@ -456,7 +462,15 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                   </Button>
                 </form>
               </div>
-              <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
+              <div className="mt-4 space-y-2 border-t border-[var(--air-glass-border)] pt-4">
+                <Button
+                  type="button"
+                  className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 border-0"
+                  onClick={() => setPremiumOpen(true)}
+                >
+                  <Crown className="h-4 w-4" />
+                  Купить премиум — 1 ₽
+                </Button>
                 {!isDesktopApp && (
                   <Button
                     type="button"
@@ -471,7 +485,7 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                 <Button
                   type="button"
                   variant="secondary"
-                  className={`${isDesktopApp ? "w-full" : "mt-2 w-full"} gap-2`}
+                  className="w-full gap-2"
                   onClick={() => setSupportOpen(true)}
                 >
                   <Headphones className="h-4 w-4" />
@@ -570,6 +584,41 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                         {supportSending ? "…" : "Отправить"}
                       </Button>
                     </form>
+                  </div>
+                </>
+              )}
+              {premiumOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+                    onClick={() => setPremiumOpen(false)}
+                    aria-hidden
+                  />
+                  <div className="fixed left-1/2 top-1/2 z-40 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-amber-400/30 bg-[var(--air-surface)] p-6 shadow-2xl shadow-amber-500/10">
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg">
+                        <Crown className="h-8 w-8" />
+                      </div>
+                      <h3 className="text-lg font-semibold [color:var(--air-text)]">Премиум — 1 ₽</h3>
+                      <p className="mt-1 text-xs [color:var(--air-text-muted)]">
+                        От покупки премиума ничего не изменится. Просто потратите деньги 🙂
+                      </p>
+                      <div className="mt-4 flex flex-col items-center gap-3">
+                        <span className="text-sm font-medium [color:var(--air-text)]">Оплачивай:</span>
+                        <img
+                          src="/qr-code.png"
+                          alt="QR-код для оплаты"
+                          className="h-44 w-44 rounded-xl border-2 border-[var(--air-glass-border)] object-contain bg-white p-2"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPremiumOpen(false)}
+                        className="mt-4 w-full rounded-xl border border-[var(--air-glass-border)] py-2 text-sm [color:var(--air-text-muted)] transition hover:bg-[var(--air-input-bg)] hover:[color:var(--air-text)]"
+                      >
+                        Закрыть
+                      </button>
+                    </div>
                   </div>
                 </>
               )}

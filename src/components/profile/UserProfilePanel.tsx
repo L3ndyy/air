@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, MessageCircle } from "lucide-react";
-import { Avatar, Button } from "@/components/ui";
+import { Avatar, Button, PremiumBadge } from "@/components/ui";
 import type { Profile } from "@/types/database";
 import { useRouter } from "next/navigation";
 
@@ -139,7 +139,10 @@ export function UserProfilePanel({ username, onClose, onlineUserIds = new Set() 
                   className="h-28 w-28 md:h-36 md:w-36 text-4xl md:text-5xl"
                 />
               </button>
-              <h1 className="mt-4 text-xl font-bold [color:var(--air-text)]">{displayName}</h1>
+              <h1 className="mt-4 flex items-center justify-center gap-1.5 text-xl font-bold [color:var(--air-text)]">
+                {displayName}
+                {profile.is_premium && <PremiumBadge size="md" className="shrink-0" />}
+              </h1>
               <p className="text-sm [color:var(--air-text-muted)]">@{profile.username}</p>
               {profile.id && onlineUserIds.has(profile.id) && (
                 <p className="mt-1 flex items-center justify-center gap-1.5 text-xs [color:var(--air-text-muted)]">

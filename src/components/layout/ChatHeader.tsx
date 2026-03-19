@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, Settings, Search, X, Phone, Trash2 } from "lucide-react";
-import { Avatar } from "@/components/ui";
+import { Avatar, PremiumBadge } from "@/components/ui";
 
 interface ChatHeaderProps {
   title: string;
@@ -17,6 +17,7 @@ interface ChatHeaderProps {
   onSearchChange?: (value: string) => void;
   onClearSearch?: () => void;
   onClearChat?: () => void;
+  showPremiumBadge?: boolean;
 }
 
 export function ChatHeader({
@@ -32,6 +33,7 @@ export function ChatHeader({
   onSearchChange,
   onClearSearch,
   onClearChat,
+  showPremiumBadge = false,
 }: ChatHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const showSearch = searchOpen || (onSearchChange && searchValue.trim() !== "");
@@ -40,7 +42,10 @@ export function ChatHeader({
     <>
       <Avatar src={avatarUrl} fallback={fallback || title} size="md" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold [color:var(--air-text)]">{title}</p>
+        <p className="flex items-center gap-1.5 truncate font-semibold [color:var(--air-text)]">
+          <span className="truncate">{title}</span>
+          {showPremiumBadge && <PremiumBadge className="shrink-0" />}
+        </p>
         {subtitle != null && (
           <div className="truncate text-xs text-air-muted">{subtitle}</div>
         )}

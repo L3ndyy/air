@@ -9,6 +9,7 @@ export interface Profile {
   updated_at: string;
   do_not_disturb?: boolean;
   banned_until?: string | null;
+  is_premium?: boolean;
 }
 
 export interface Conversation {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, Users, UserPlus, Link2, LogOut, Trash2, MoreVertical, UserMinus, Shield, User } from "lucide-react";
-import { Avatar, Button, Input } from "@/components/ui";
+import { Avatar, Button, Input, PremiumBadge } from "@/components/ui";
 import { EMOJI_LIST } from "@/lib/emoji";
 
 const EMOJI_PREFIX = "emoji:";
@@ -14,6 +14,7 @@ export interface GroupParticipant {
   full_name: string | null;
   avatar_url: string | null;
   role?: string;
+  is_premium?: boolean;
 }
 
 interface GroupSettingsPanelProps {
@@ -376,8 +377,9 @@ export function GroupSettingsPanel({
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium [color:var(--air-text)]">
-                          {p.full_name || p.username}
+                        <p className="flex items-center gap-1.5 truncate font-medium [color:var(--air-text)]">
+                          <span className="truncate">{p.full_name || p.username}</span>
+                          {p.is_premium && <PremiumBadge className="shrink-0" />}
                           {p.role === "creator" && (
                             <span className="ml-1.5 text-xs font-normal [color:var(--air-text-muted)]">· Создатель</span>
                           )}

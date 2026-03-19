@@ -441,6 +441,7 @@ export default function ChatPage() {
               title={title}
               avatarUrl={avatarUrl}
               fallback={fallback}
+              showPremiumBadge={selected?.type === "direct" && !!selected?.otherParticipant?.is_premium}
               subtitle={<TypingIndicator conversationId={selectedId} currentUserId={currentUser?.id} />}
               onBack={() => {
                 setSelectedId(null);

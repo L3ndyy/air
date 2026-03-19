@@ -51,13 +51,22 @@ export async function GET(request: Request) {
 
     const authUsers = listData?.users ?? [];
     const ids = authUsers.map((u) => u.id);
-    let profileMap = new Map<string, { username: string | null; full_name: string | null }>();
+    let profileMap = new Map<string, { username: string | null; full_name: string | null; is_premium: boolean }>();
     if (ids.length > 0) {
       const { data: profiles } = await admin
         .from("profiles")
-        .select("id, username, full_name")
+        .select("id, username, full_name, is_premium")
         .in("id", ids);
-      profileMap = new Map((profiles ?? []).map((p) => [p.id, { username: p.username ?? null, full_name: p.full_name ?? null }]));
+      profileMap = new Map(
+        (profiles ?? []).map((p) => [
+          p.id,
+          {
+            username: p.username ?? null,
+            full_name: p.full_name ?? null,
+            is_premium: Boolean(p.is_premium),
+          },
+        ])
+      );
     }
 
     const users = authUsers.map((u) => {
@@ -69,6 +78,7 @@ export async function GET(request: Request) {
         email_confirmed_at: u.email_confirmed_at ?? null,
         username: p?.username ?? null,
         full_name: p?.full_name ?? null,
+        is_premium: p?.is_premium ?? false,
       };
     });
 
@@ -117,6 +127,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
       return NextResponse.json({ success: true, password: newPassword });
+    }
+
+    if (action === "set_premium" && userId !== undefined) {
+      const isPremium = Boolean(body.is_premium);
+      const admin = createAdminClient();
+      const { error } = await admin
+        .from("profiles")
+        .update({ is_premium: isPremium })
+        .eq("id", userId);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, is_premium: isPremium });
     }
 
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
