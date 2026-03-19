@@ -33,3 +33,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# desktop (Tauri)
+desktop/dist
+desktop/src-tauri/target

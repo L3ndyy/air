@@ -1,0 +1,50 @@
+{
+    "$schema":  "https://schema.tauri.app/config/2",
+    "productName":  "Air",
+    "version":  "1.0.0",
+    "identifier":  "com.air.messenger",
+    "build":  {
+                  "beforeBuildCommand":  "node scripts/prepare-frontend.js",
+                  "beforeDevCommand":  "node scripts/prepare-frontend.js \u0026\u0026 node scripts/serve-dist.js",
+                  "devUrl":  "http://localhost:1421",
+                  "frontendDist":  "../dist"
+              },
+    "app":  {
+                "withGlobalTauri":  true,
+                "windows":  [
+                                {
+                                    "title":  "Air — Мессенджер",
+                                    "width":  1000,
+                                    "height":  700,
+                                    "minWidth":  400,
+                                    "minHeight":  400,
+                                    "resizable":  true,
+                                    "fullscreen":  false
+                                }
+                            ],
+                "security":  {
+                                 "csp":  null
+                             }
+            },
+    "bundle":  {
+                   "active":  true,
+                   "targets":  "all",
+                   "icon":  [
+                                "icons/32x32.png",
+                                "icons/128x128.png",
+                                "icons/128x128@2x.png",
+                                "icons/icon.icns",
+                                "icons/icon.ico"
+                            ],
+                   "windows":  {
+                                   "certificateThumbprint":  null,
+                                   "digestAlgorithm":  null,
+                                   "timestampUrl":  null
+                               },
+                   "longDescription":  "Десктопное приложение мессенджера Air.",
+                   "shortDescription":  "Мессенджер Air для Windows"
+               },
+    "plugins":  {
+
+                }
+}

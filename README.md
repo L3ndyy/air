@@ -56,6 +56,10 @@ npm run deploy
 
 Подробная инструкция — в [DEPLOY.md](DEPLOY.md) (миграции, Realtime, хостинг в РФ: ONREZA, self-host Supabase на Oracle Cloud).
 
+## Десктоп (Windows)
+
+В папке `desktop/` — приложение на [Tauri 2](https://v2.tauri.app/) для Windows: отдельное окно и системные уведомления о новых сообщениях. Сборка: установите [Rust](https://rustup.rs/) и [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), затем в `desktop/` выполните `npm install` и `npm run build`. Подробнее в [desktop/README.md](desktop/README.md). На сайте в сайдбаре есть пункт «Скачать для Windows» (страница `/download`).
+
 ## Функции
 
 - Регистрация и вход (email + пароль, уникальный username)

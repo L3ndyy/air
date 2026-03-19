@@ -1,0 +1,16 @@
+{
+  "name": "air-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/prepare-frontend.js && tauri dev",
+    "build": "node scripts/prepare-frontend.js && tauri build",
+    "serve:shell": "npx serve public -p 1421",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "concurrently": "^9.1.0",
+    "serve": "^14.2.4"
+  }
+}

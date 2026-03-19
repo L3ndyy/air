@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Air — Мессенджер</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0e0e0e; }
+    #app { width: 100%; height: 100%; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <script>window.AIR_APP_URL = window.AIR_APP_URL || 'http://localhost:3000';</script>
+  <script src="config.js"></script>
+  <iframe id="app" title="Air"></iframe>
+  <script>
+    document.getElementById('app').src = window.AIR_APP_URL;
+  </script>
+  <script>
+    (function() {
+      var iframe = document.getElementById('app');
+      iframe.src = window.AIR_APP_URL;
+
+      window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'tauri-notify') {
+          var title = e.data.title || 'Air';
+          var body = e.data.body || '';
+          if (typeof window.__TAURI_INTERNALS__ !== 'undefined' && window.__TAURI_INTERNALS__.invoke) {
+            window.__TAURI_INTERNALS__.invoke('show_notification', { title: title, body: body })
+              .catch(function(err) { console.warn('Tauri notify:', err); });
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

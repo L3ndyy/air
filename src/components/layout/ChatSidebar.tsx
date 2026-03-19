@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { MessageCircle, User, Plus, Search, Shield } from "lucide-react";
+import { MessageCircle, User, Plus, Search, Shield, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -266,9 +266,16 @@ export function ChatSidebar({
         })}
       </ul>
 
-      {/* Theme + Profile */}
+      {/* Theme + Profile + Download */}
       <div className="shrink-0 border-t border-[var(--air-glass-border)] p-3 space-y-1">
         <ThemeToggle />
+        <Link
+          href="/download"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm [color:var(--air-text-muted)] transition-colors duration-200 hover:bg-white/50 hover:[color:var(--air-text)]"
+        >
+          <Download className="h-4 w-4 shrink-0" />
+          <span>Скачать для Windows</span>
+        </Link>
         {isAdmin && (
           <Link
             href="/admin"

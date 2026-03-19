@@ -351,6 +351,14 @@ export default function ChatPage() {
           refreshConversations();
           if (msg.sender_id !== currentUser.id && msg.conversation_id !== selectedId && !profile?.do_not_disturb) {
             setToast("Новое сообщение");
+            if (typeof window !== "undefined" && window.parent !== window) {
+              try {
+                window.parent.postMessage(
+                  { type: "tauri-notify", title: "Air", body: "Новое сообщение" },
+                  "*"
+                );
+              } catch {}
+            }
             const soundOn = typeof window !== "undefined" && localStorage.getItem("air-sound-enabled") !== "false";
             if (soundOn) {
               try {
