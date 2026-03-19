@@ -33,6 +33,8 @@ function getExtension(filename: string): string {
 export function Composer({ conversationId, replyTo, onClearReply, isBanned = false }: ComposerProps) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const lastSendAtRef = useRef(0);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const supabase = createClient();
@@ -117,50 +119,56 @@ export function Composer({ conversationId, replyTo, onClearReply, isBanned = fal
   const send = useCallback(async () => {
     const text = content.trim();
     const hasContent = text || pendingFile;
-    if (!hasContent || sending) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const now = Date.now();
+    if (!hasContent || sending || sendingRef.current || now - lastSendAtRef.current < 450) return;
+    sendingRef.current = true;
+    lastSendAtRef.current = now;
     setSending(true);
-    setUploadError(null);
-    let attachmentUrl: string | null = null;
-    if (pendingFile) {
-      const ext = getExtension(pendingFile.name);
-      const path = `${conversationId}/${user.id}/${crypto.randomUUID()}${ext}`;
-      const { error: uploadErr } = await supabase.storage
-        .from("chat-files")
-        .upload(path, pendingFile, { upsert: false });
-      if (uploadErr) {
-        const msg =
-          uploadErr.message?.toLowerCase().includes("bucket") ||
-          uploadErr.message?.toLowerCase().includes("not found")
-            ? "Хранилище файлов не настроено. В Supabase выполните миграцию 20240316000006_chat_attachments.sql (Storage → создать бакет chat-files)."
-            : uploadErr.message;
-        setUploadError(msg);
-        setSending(false);
-        return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUploadError(null);
+      let attachmentUrl: string | null = null;
+      if (pendingFile) {
+        const ext = getExtension(pendingFile.name);
+        const path = `${conversationId}/${user.id}/${crypto.randomUUID()}${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("chat-files")
+          .upload(path, pendingFile, { upsert: false });
+        if (uploadErr) {
+          const msg =
+            uploadErr.message?.toLowerCase().includes("bucket") ||
+            uploadErr.message?.toLowerCase().includes("not found")
+              ? "Хранилище файлов не настроено. В Supabase выполните миграцию 20240316000006_chat_attachments.sql (Storage → создать бакет chat-files)."
+              : uploadErr.message;
+          setUploadError(msg);
+          return;
+        }
+        const { data: urlData } = supabase.storage.from("chat-files").getPublicUrl(path);
+        attachmentUrl = urlData.publicUrl;
+        setPendingFile(null);
       }
-      const { data: urlData } = supabase.storage.from("chat-files").getPublicUrl(path);
-      attachmentUrl = urlData.publicUrl;
-      setPendingFile(null);
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: text || "",
+        attachment_url: attachmentUrl,
+        reply_to_id: replyTo?.id ?? null,
+      });
+      setContent("");
+      onClearReply?.();
+      const notifyBody = text?.slice(0, 100) || "Вложение";
+      // Для хостингов вроде Onreza, где POST /api может давать 405, используем GET
+      const params = new URLSearchParams({
+        conversationId,
+        title: "Air",
+        body: notifyBody,
+      });
+      fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: user.id,
-      content: text || "",
-      attachment_url: attachmentUrl,
-      reply_to_id: replyTo?.id ?? null,
-    });
-    setContent("");
-    onClearReply?.();
-    setSending(false);
-    const notifyBody = text?.slice(0, 100) || "Вложение";
-    // Для хостингов вроде Onreza, где POST /api может давать 405, используем GET
-    const params = new URLSearchParams({
-      conversationId,
-      title: "Air",
-      body: notifyBody,
-    });
-    fetch(`/api/push/notify?${params.toString()}`, { credentials: "include" }).catch(() => {});
   }, [content, conversationId, pendingFile, replyTo?.id, sending, supabase, onClearReply]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

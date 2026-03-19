@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { X, LogOut, Lock, Moon, Volume2, Headphones } from "lucide-react";
+import { X, LogOut, Lock, Moon, Volume2, Headphones, Download } from "lucide-react";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { Button, Input } from "@/components/ui";
@@ -40,8 +40,16 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
   const [supportConversationId, setSupportConversationId] = useState<string | null>(null);
   const [supportMessages, setSupportMessages] = useState<Message[]>([]);
   const [supportLoading, setSupportLoading] = useState(false);
+  const [isDesktopApp, setIsDesktopApp] = useState(false);
   const supabase = createClient();
   const supportScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const isDesktop = q.get("desktop") === "1" || !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    setIsDesktopApp(isDesktop);
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -449,10 +457,21 @@ export function ProfilePanel({ onClose }: ProfilePanelProps) {
                 </form>
               </div>
               <div className="mt-8 border-t border-[var(--air-glass-border)] pt-6">
+                {!isDesktopApp && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full gap-2"
+                    onClick={() => router.push("/download")}
+                  >
+                    <Download className="h-4 w-4" />
+                    Скачать для Windows
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="secondary"
-                  className="w-full gap-2"
+                  className={`${isDesktopApp ? "w-full" : "mt-2 w-full"} gap-2`}
                   onClick={() => setSupportOpen(true)}
                 >
                   <Headphones className="h-4 w-4" />
